@@ -661,9 +661,8 @@ int main(int argc, char **argv) {
 				}
 
 
-				if (FD_ISSET(servers[i]->sock, &readSet) || (servers[i]->gnutlsSessionInited && gnutls_record_check_pending(servers[i]->tls) > 0)) {
+				if (FD_ISSET(servers[i]->sock, &readSet) || servers[i]->hasTlsPendingData())
 					servers[i]->readAction();
-				}
 			}
 		}
 
