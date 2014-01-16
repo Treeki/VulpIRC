@@ -49,13 +49,12 @@ struct SocketRWCommon {
 
 	int sock;
 	gnutls_session_t tls;
-	bool isTls, gnutlsSessionInited;
+	bool tlsActive;
 
 	SocketRWCommon() {
 		sock = -1;
 		state = CS_DISCONNECTED;
-		isTls = false;
-		gnutlsSessionInited = false;
+		tlsActive = false;
 	}
 
 	~SocketRWCommon() {
@@ -69,7 +68,7 @@ struct SocketRWCommon {
 	void writeAction();
 	bool hasTlsPendingData() {
 		// should un-inline this maybe?
-		if (gnutlsSessionInited)
+		if (tlsActive)
 			return (gnutls_record_check_pending(tls) > 0);
 		else
 			return false;
@@ -90,12 +89,14 @@ private:
 };
 
 struct Server : SocketRWCommon {
-	char hostname[256];
-	int port;
+	char ircHostname[256];
+	int ircPort;
 	int dnsQueryId;
+	bool ircUseTls;
 
 	Server() {
 		dnsQueryId = -1;
+		ircUseTls = false;
 	}
 
 	~Server() {
@@ -146,7 +147,7 @@ void SocketRWCommon::tryTLSHandshake() {
 
 void SocketRWCommon::close() {
 	if (sock != -1) {
-		if (gnutlsSessionInited)
+		if (tlsActive)
 			gnutls_bye(tls, GNUTLS_SHUT_RDWR);
 		shutdown(sock, SHUT_RDWR);
 		::close(sock);
@@ -157,9 +158,9 @@ void SocketRWCommon::close() {
 	outputBuf.clear();
 	state = CS_DISCONNECTED;
 
-	if (gnutlsSessionInited) {
+	if (tlsActive) {
 		gnutls_deinit(tls);
-		gnutlsSessionInited = false;
+		tlsActive = false;
 	}
 }
 
@@ -172,7 +173,7 @@ void SocketRWCommon::readAction() {
 		inputBuf.setCapacity(requiredSize);
 
 	ssize_t amount;
-	if (gnutlsSessionInited) {
+	if (tlsActive) {
 		amount = gnutls_record_recv(tls,
 				&inputBuf.data()[bufSize],
 				0x200);
@@ -203,7 +204,7 @@ void SocketRWCommon::readAction() {
 void SocketRWCommon::writeAction() {
 	// What can we get rid of...?
 	ssize_t amount;
-	if (gnutlsSessionInited) {
+	if (tlsActive) {
 		amount = gnutls_record_send(tls,
 				outputBuf.data(),
 				outputBuf.size());
@@ -267,7 +268,7 @@ void Client::startService(int _sock, bool withTls) {
 
 		gnutls_transport_set_int(tls, sock);
 
-		gnutlsSessionInited = true;
+		tlsActive = true;
 
 		state = CS_TLS_HANDSHAKE;
 
@@ -296,9 +297,9 @@ void Client::handleLine(char *line, int size) {
 		DNS::makeQuery(&line[8]);
 	} else if (strncmp(&line[1], "ddsrv ", 6) == 0) {
 		servers[serverCount] = new Server;
-		strcpy(servers[serverCount]->hostname, &line[7]);
-		servers[serverCount]->port = 1191;
-		servers[serverCount]->isTls = (line[0] == 's');
+		strcpy(servers[serverCount]->ircHostname, &line[7]);
+		servers[serverCount]->ircPort = 1191;
+		servers[serverCount]->ircUseTls = (line[0] == 's');
 		serverCount++;
 		outputBuf.append("Your wish is my command!\n", 25);
 	} else if (strncmp(line, "connsrv", 7) == 0) {
@@ -370,7 +371,7 @@ void Server::processReadBuffer() {
 void Server::beginConnect() {
 	if (state == CS_DISCONNECTED) {
 		DNS::closeQuery(dnsQueryId); // just in case
-		dnsQueryId = DNS::makeQuery(hostname);
+		dnsQueryId = DNS::makeQuery(ircHostname);
 
 		if (dnsQueryId == -1) {
 			// TODO: better error reporting
@@ -412,7 +413,7 @@ void Server::tryConnectPhase() {
 				// We have our non-blocking socket, let's try connecting!
 				sockaddr_in outAddr;
 				outAddr.sin_family = AF_INET;
-				outAddr.sin_port = htons(port);
+				outAddr.sin_port = htons(ircPort);
 				outAddr.sin_addr.s_addr = result.s_addr;
 
 				if (connect(sock, (sockaddr *)&outAddr, sizeof(outAddr)) == -1) {
@@ -437,7 +438,7 @@ void Server::connectionSuccessful() {
 	outputBuf.clear();
 
 	// Do we need to do any TLS junk?
-	if (isTls) {
+	if (ircUseTls) {
 		int initRet = gnutls_init(&tls, GNUTLS_CLIENT);
 		if (initRet != GNUTLS_E_SUCCESS) {
 			printf("[Server::connectionSuccessful] gnutls_init borked\n");
@@ -454,7 +455,7 @@ void Server::connectionSuccessful() {
 
 		gnutls_transport_set_int(tls, sock);
 
-		gnutlsSessionInited = true;
+		tlsActive = true;
 		state = CS_TLS_HANDSHAKE;
 	}
 }
