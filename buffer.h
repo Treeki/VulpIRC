@@ -145,6 +145,28 @@ public:
 	int32_t readS32() { int32_t v; read((char *)&v, 4); return v; }
 	int16_t readS16() { int16_t v; read((char *)&v, 2); return v; }
 	int8_t readS8() { int8_t v; read((char *)&v, 1); return v; }
+
+	void readStr(char *output, int bufferSize) {
+		uint32_t size = readU32();
+		if (!readRemains(size)) {
+			strcpy(output, "");
+			return;
+		}
+
+		// How much can we safely get?
+		int readAmount;
+		if (size < (bufferSize - 1))
+			readAmount = size;
+		else
+			readAmount = bufferSize - 1;
+
+		// Put this into the buffer
+		read(output, readAmount);
+		output[readAmount] = 0;
+
+		// In case the buffer was too small, skip over the extra source data
+		m_readPointer += (size - readAmount);
+	}
 };
 
 #endif /* BUFFER_H */

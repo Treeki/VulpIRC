@@ -48,6 +48,9 @@ struct Packet {
 	enum Type {
 		T_OUT_OF_BAND_FLAG = 0x8000,
 
+		C2B_COMMAND = 1,
+		B2C_STATUS = 1,
+
 		C2B_OOB_LOGIN = 0x8001,
 
 		B2C_OOB_LOGIN_SUCCESS = 0x8001,
@@ -85,7 +88,7 @@ private:
 	int readBufPosition;
 	void processReadBuffer();
 	void handlePacket(Packet::Type type, char *data, int size);
-	void handleLine(char *line, int size);
+	void handleCommand(char *line, int size);
 
 	void generateSessionKey();
 	void resumeSession(Client *other, int lastReceivedByClient);

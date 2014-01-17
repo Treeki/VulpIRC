@@ -45,9 +45,9 @@ static bool setSocketNonBlocking(int sock) {
 static bool isNullSessionKey(uint8_t *key) {
 	for (int i = 0; i < SESSION_KEY_SIZE; i++)
 		if (key[i] != 0)
-			return true;
+			return false;
 
-	return false;
+	return true;
 }
 
 static Client *findClientWithKey(uint8_t *key) {
@@ -297,14 +297,15 @@ void Client::clearCachedPackets(int maxID) {
 }
 
 
-void Client::handleLine(char *line, int size) {
+void Client::handleCommand(char *line, int size) {
 	// This is a terrible mess that will be replaced shortly
 	if (authState == AS_AUTHED) {
 		if (strncmp(line, "all ", 4) == 0) {
-			for (int i = 0; i < clientCount; i++) {
-				clients[i]->outputBuf.append(&line[4], size - 4);
-				clients[i]->outputBuf.append("\n", 1);
-			}
+			Buffer pkt;
+			pkt.writeStr(&line[4]);
+			for (int i = 0; i < clientCount; i++)
+				clients[i]->sendPacket(Packet::B2C_STATUS, pkt);
+
 		} else if (strcmp(line, "quit") == 0) {
 			quitFlag = true;
 		} else if (strncmp(line, "resolve ", 8) == 0) {
@@ -315,7 +316,12 @@ void Client::handleLine(char *line, int size) {
 			servers[serverCount]->ircPort = 1191;
 			servers[serverCount]->ircUseTls = (line[0] == 's');
 			serverCount++;
-			outputBuf.append("Your wish is my command!\n", 25);
+
+			Buffer pkt;
+			pkt.writeStr("Your wish is my command!");
+			for (int i = 0; i < clientCount; i++)
+				clients[i]->sendPacket(Packet::B2C_STATUS, pkt);
+
 		} else if (strncmp(line, "connsrv", 7) == 0) {
 			int sid = line[7] - '0';
 			servers[sid]->beginConnect();
@@ -347,34 +353,61 @@ void Client::handlePacket(Packet::Type type, char *data, int size) {
 			if (!pkt.readRemains(SESSION_KEY_SIZE))
 				error = 2;
 
-			uint8_t reqKey[SESSION_KEY_SIZE];
-			pkt.read((char *)reqKey, SESSION_KEY_SIZE);
+			// Authentication goes here at some point, too
 
-			if (!isNullSessionKey(reqKey)) {
-				Client *other = findClientWithKey(reqKey);
-				if (other && other->authState == AS_AUTHED) {
-					// Yep, we can go!
-					other->resumeSession(this, lastReceivedByClient);
-					return;
+
+			if (error != 0) {
+				// Send an error...
+				Buffer pkt;
+				pkt.writeU32(error);
+				sendPacket(Packet::B2C_OOB_LOGIN_FAILED, pkt, /*allowUnauthed=*/true);
+
+				// Would close() now but this means the login failed packet never gets sent
+				// need to figure out a fix for this. TODO FIXME etc etc.
+
+			} else {
+				// or log us in!
+				uint8_t reqKey[SESSION_KEY_SIZE];
+				pkt.read((char *)reqKey, SESSION_KEY_SIZE);
+
+				printf("[fd=%d] Client authenticating\n", sock);
+
+				if (!isNullSessionKey(reqKey)) {
+					printf("[fd=%d] Trying to resume session...\n", sock);
+
+					Client *other = findClientWithKey(reqKey);
+					printf("[fd=%d] Got client %p\n", sock, other);
+
+					if (other && other->authState == AS_AUTHED) {
+						// Yep, we can go!
+						other->resumeSession(this, lastReceivedByClient);
+						return;
+					}
 				}
+
+				// If we got here, it means we couldn't resume the session.
+				// Start over.
+				printf("[fd=%d] Creating new session\n", sock);
+
+				generateSessionKey();
+				authState = AS_AUTHED;
+
+				Buffer pkt;
+				pkt.append((char *)sessionKey, SESSION_KEY_SIZE);
+				sendPacket(Packet::B2C_OOB_LOGIN_SUCCESS, pkt);
 			}
-
-			// If we got here, it means we couldn't resume the session.
-			// Start over.
-			generateSessionKey();
-			authState = AS_AUTHED;
-
-			Buffer pkt;
-			pkt.append((char *)sessionKey, SESSION_KEY_SIZE);
-			sendPacket(Packet::B2C_OOB_LOGIN_SUCCESS, pkt);
 
 		} else {
 			printf("[fd=%d] Unrecognised packet in AS_LOGIN_WAIT authstate: type %d, size %d\n",
 					sock, type, size);
 		}
 	} else if (authState == AS_AUTHED) {
-		//if (type == Packet::) {
-		/*} else */{
+		if (type == Packet::C2B_COMMAND) {
+			char cmd[2048];
+			pkt.readStr(cmd, sizeof(cmd));
+			handleCommand(cmd, strlen(cmd));
+
+		} else {
 			printf("[fd=%d] Unrecognised packet in AS_AUTHED authstate: type %d, size %d\n",
 					sock, type, size);
 		}

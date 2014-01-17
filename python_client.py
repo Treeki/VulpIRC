@@ -1,10 +1,9 @@
 import socket, ssl, threading, struct
 
-basesock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
-basesock.connect(('localhost', 5454))
-#sock = ssl.wrap_socket(basesock)
-sock = basesock
-
+protocolVer = 1
+sock = None
+authed = False
+sessionKey = b'\0'*16
 nextID = 1
 lastReceivedPacketID = 0
 packetCache = []
@@ -39,7 +38,7 @@ def clearCachedPackets(pid):
 			packetCache.remove(packet)
 
 def reader():
-	global lastReceivedPacketID
+	global lastReceivedPacketID, authed, sessionKey
 	readbuf = b''
 
 	print('(Connected)')
@@ -53,48 +52,89 @@ def reader():
 
 		pos = 0
 		bufsize = len(readbuf)
+		print('[bufsize: %d]' % bufsize)
 		while True:
 			if (pos + 8) > bufsize:
 				break
 
 			type, reserved, size = struct.unpack_from('<HHI', readbuf, pos)
-			pos += 8
 
 			extHeaderSize = 8 if ((type & 0x8000) == 0) else 0
-			if (pos + extHeaderSize + size) > bufsize:
+			if (pos + 8 + extHeaderSize + size) > bufsize:
 				break
 
-			if ((type & 0x8000) == 0):
-				pid, lastReceivedByServer = struct.unpack_from('<II', readbuf, pos)
-				pos += 8
+			pos += 8
+			with packetLock:
+				if ((type & 0x8000) == 0):
+					pid, lastReceivedByServer = struct.unpack_from('<II', readbuf, pos)
+					pos += 8
 
-				with packetLock:
 					lastReceivedPacketID = pid
 					clearCachedPackets(lastReceivedByServer)
 
-			packetdata = data[pos:pos+size]
-			print('0x%x : %d bytes : %s' % (type, size, packetdata))
+				packetdata = data[pos:pos+size]
+				print('0x%x : %d bytes : %s' % (type, size, packetdata))
+
+				if type == 0x8001:
+					sessionKey = packetdata
+					authed = True
+				elif type == 0x8003:
+					authed = True
+					pid = struct.unpack('<I', packetdata)
+					clearCachedPackets(pid)
+					try:
+						for packet in packetCache:
+							packet.sendOverWire()
+					except:
+						pass
+				elif type == 1:
+					print(packetdata.decode('utf-8'))
+
 			pos += size
 
-def writePacket(type, data):
-	with packetLock:
-		packet = Packet(type, data)
-		if (type & 0x8000) != 0:
-			packetCache.append(packet)
-		packet.sendOverWire()
+		print('[processed %d bytes]' % pos)
+		readbuf = readbuf[pos:]
+
+def writePacket(type, data, allowUnauthed=False):
+	packet = Packet(type, data)
+	if (type & 0x8000) == 0:
+		packetCache.append(packet)
+	try:
+		if authed or allowUnauthed:
+			packet.sendOverWire()
+	except:
+		pass
 
 
-thd = threading.Thread(None, reader)
-thd.start()
 
 while True:
 	bit = input()
 	bits = bit.split(' ', 1)
 	cmd = bits[0]
 
-	if cmd == 'login':
-		writePacket(0x8001, struct.pack('<II 16s', 0, 0, b'\0'*16))
-	elif cmd == 'cmd':
-		data = bits[1].encode('utf-8')
-		writePacket(1, struct.pack('<I', len(data)) + data)
+	with packetLock:
+		print('{')
+		if cmd == 'connect':
+			try:
+				basesock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+				basesock.connect(('localhost', 5454))
+				#sock = ssl.wrap_socket(basesock)
+				sock = basesock
+				thd = threading.Thread(None, reader)
+				thd.start()
+			except Exception as e:
+				print(e)
+		elif cmd == 'disconnect':
+			sock.shutdown(socket.SHUT_RDWR)
+			sock.close()
+			sock = None
+			authed = False
+		elif cmd == 'login':
+			writePacket(0x8001, struct.pack('<II 16s', protocolVer, lastReceivedPacketID, sessionKey), True)
+		elif cmd == 'cmd':
+			data = bits[1].encode('utf-8')
+			writePacket(1, struct.pack('<I', len(data)) + data)
+		elif cmd == 'quit':
+			break
+		print('}')
 
