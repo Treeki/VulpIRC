@@ -167,6 +167,31 @@ public:
 		// In case the buffer was too small, skip over the extra source data
 		m_readPointer += (size - readAmount);
 	}
+
+
+	void dump() {
+		for (int base = 0; base < m_size; base += 0x10) {
+			printf("%08x | ", base);
+
+			int pos;
+			for (pos = base; (pos < m_size) && (pos < (base + 0x10)); pos++)
+				printf("%02x ", (uint8_t)m_data[pos]);
+
+			if (pos < (base + 0x10))
+				for (; pos < (base + 0x10); pos++)
+					printf("   ");
+
+			printf("| ");
+
+			for (pos = base; (pos < m_size) && (pos < (base + 0x10)); pos++)
+				if (m_data[pos] >= 32)
+					printf("%c", m_data[pos]);
+				else
+					printf(".");
+
+			printf("\n");
+		}
+	}
 };
 
 #endif /* BUFFER_H */

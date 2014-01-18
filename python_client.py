@@ -72,7 +72,7 @@ def reader():
 					lastReceivedPacketID = pid
 					clearCachedPackets(lastReceivedByServer)
 
-				packetdata = data[pos:pos+size]
+				packetdata = readbuf[pos:pos+size]
 				print('0x%x : %d bytes : %s' % (type, size, packetdata))
 
 				if type == 0x8001:
@@ -80,7 +80,7 @@ def reader():
 					authed = True
 				elif type == 0x8003:
 					authed = True
-					pid = struct.unpack('<I', packetdata)
+					pid = struct.unpack('<I', packetdata)[0]
 					clearCachedPackets(pid)
 					try:
 						for packet in packetCache:
@@ -88,7 +88,8 @@ def reader():
 					except:
 						pass
 				elif type == 1:
-					print(packetdata.decode('utf-8'))
+					strlen = struct.unpack_from('<I', packetdata, 0)[0]
+					print(packetdata[4:4+strlen].decode('utf-8'))
 
 			pos += size
 

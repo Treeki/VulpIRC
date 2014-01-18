@@ -120,7 +120,7 @@ void SocketRWCommon::readAction() {
 	// (Up this, maybe?)
 	int bufSize = inputBuf.size();
 	int requiredSize = bufSize + 0x200;
-	if (requiredSize < inputBuf.capacity())
+	if (requiredSize > inputBuf.capacity())
 		inputBuf.setCapacity(requiredSize);
 
 	ssize_t amount;
@@ -129,6 +129,7 @@ void SocketRWCommon::readAction() {
 				&inputBuf.data()[bufSize],
 				0x200);
 	} else {
+
 		amount = recv(sock,
 				&inputBuf.data()[bufSize],
 				0x200,
@@ -148,8 +149,15 @@ void SocketRWCommon::readAction() {
 		close();
 
 	} else if (amount < 0) {
-		perror("Error while reading!");
-		close();
+		if (tlsActive) {
+			if (gnutls_error_is_fatal(amount)) {
+				printf("Error while reading [gnutls %d]!\n", amount);
+				close();
+			}
+		} else {
+			perror("Error while reading!");
+			close();
+		}
 	}
 }
 
@@ -173,8 +181,15 @@ void SocketRWCommon::writeAction() {
 	} else if (amount == 0)
 		printf("Sent 0!\n");
 	else if (amount < 0) {
-		perror("Error while sending!");
-		close();
+		if (tlsActive) {
+			if (gnutls_error_is_fatal(amount)) {
+				printf("Error while sending [gnutls %d]!\n", amount);
+				close();
+			}
+		} else {
+			perror("Error while sending!");
+			close();
+		}
 	}
 }
 
@@ -373,7 +388,8 @@ void Client::handlePacket(Packet::Type type, char *data, int size) {
 				printf("[fd=%d] Client authenticating\n", sock);
 
 				if (!isNullSessionKey(reqKey)) {
-					printf("[fd=%d] Trying to resume session...\n", sock);
+					printf("[fd=%d] Trying to resume session...", sock);
+					printf("(last they received = %d, last we sent = %d)\n", lastReceivedByClient, nextPacketID - 1);
 
 					Client *other = findClientWithKey(reqKey);
 					printf("[fd=%d] Got client %p\n", sock, other);
@@ -548,10 +564,13 @@ Server::~Server() {
 
 
 void Server::handleLine(char *line, int size) {
-	for (int i = 0; i < clientCount; i++) {
-		clients[i]->outputBuf.append(line, size);
-		clients[i]->outputBuf.append("\n", 1);
-	}
+	printf("[%d] { %s }\n", size, line);
+
+	Buffer pkt;
+	pkt.writeStr(line, size);
+	for (int i = 0; i < clientCount; i++)
+		if (clients[i]->authState == Client::AS_AUTHED)
+			clients[i]->sendPacket(Packet::B2C_STATUS, pkt);
 }
 void Server::processReadBuffer() {
 	// Try to process as many lines as we can
@@ -573,7 +592,7 @@ void Server::processReadBuffer() {
 	}
 
 	// If we managed to handle anything, lop it off the buffer
-	inputBuf.trimFromStart(pos);
+	inputBuf.trimFromStart(lineBegin);
 }
 
 
@@ -830,7 +849,7 @@ int main(int argc, char **argv) {
 		int numFDs = select(maxFD+1, &readSet, &writeSet, NULL, &timeout);
 
 		now = time(NULL);
-		printf("[%lu select:%d]\n", now, numFDs);
+		//printf("[%lu select:%d]\n", now, numFDs);
 
 
 		for (int i = 0; i < clientCount; i++) {
