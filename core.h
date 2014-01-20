@@ -136,6 +136,12 @@ struct NetCore {
 	Client *findClientWithSessionKey(uint8_t *key) const;
 private:
 	virtual Client *constructClient() = 0;
+
+public:
+	int registerServer(Server *server); // THIS FUNCTION WILL BE PROTECTED LATER
+protected:
+	void deregisterServer(int id);
+	int findServerID(Server *server) const;
 };
 
 struct Bouncer : NetCore {

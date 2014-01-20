@@ -314,12 +314,11 @@ void Client::handleCommand(char *line, int size) {
 		} else if (strncmp(line, "resolve ", 8) == 0) {
 			DNS::makeQuery(&line[8]);
 		} else if (strncmp(&line[1], "ddsrv ", 6) == 0) {
-			int srvID = netCore->serverCount;
-			netCore->servers[srvID] = new Server(netCore);
-			strcpy(netCore->servers[srvID]->ircHostname, &line[7]);
-			netCore->servers[srvID]->ircPort = 1191;
-			netCore->servers[srvID]->ircUseTls = (line[0] == 's');
-			netCore->serverCount++;
+			Server *srv = new Server(netCore);
+			strcpy(srv->ircHostname, &line[7]);
+			srv->ircPort = 1191;
+			srv->ircUseTls = (line[0] == 's');
+			netCore->registerServer(srv);
 
 			Buffer pkt;
 			pkt.writeStr("Your wish is my command!");
@@ -740,6 +739,29 @@ Client *NetCore::findClientWithSessionKey(uint8_t *key) const {
 			return clients[i];
 
 	return 0;
+}
+
+int NetCore::registerServer(Server *server) {
+	if (serverCount >= SERVER_LIMIT)
+		return -1;
+
+	int id = serverCount++;
+	servers[id] = server;
+	return id;
+}
+void NetCore::deregisterServer(int id) {
+	Server *server = servers[id];
+	server->close();
+	delete server;
+
+	serverCount--;
+	servers[id] = servers[serverCount];
+}
+int NetCore::findServerID(Server *server) const {
+	for (int i = 0; i < SERVER_LIMIT; i++)
+		if (servers[i] == server)
+			return i;
+	return -1;
 }
 
 int NetCore::execute() {
