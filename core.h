@@ -14,7 +14,11 @@
 
 #define SERVE_VIA_TLS false
 
+struct NetCore;
+
 struct SocketRWCommon {
+	NetCore *netCore;
+
 	Buffer inputBuf, outputBuf;
 
 	enum ConnState {
@@ -30,7 +34,7 @@ struct SocketRWCommon {
 	gnutls_session_t tls;
 	bool tlsActive;
 
-	SocketRWCommon();
+	SocketRWCommon(NetCore *_netCore);
 	virtual ~SocketRWCommon();
 
 	void tryTLSHandshake();
@@ -76,7 +80,7 @@ struct Client : SocketRWCommon {
 	std::list<Packet *> packetCache;
 	int nextPacketID, lastReceivedPacketID;
 
-	Client();
+	Client(NetCore *_netCore);
 	~Client();
 
 	void startService(int _sock, bool withTls);
@@ -102,7 +106,7 @@ struct Server : SocketRWCommon {
 	int dnsQueryId;
 	bool ircUseTls;
 
-	Server();
+	Server(NetCore *_netCore);
 	~Server();
 
 	void beginConnect();
@@ -114,6 +118,29 @@ struct Server : SocketRWCommon {
 private:
 	void processReadBuffer();
 	void handleLine(char *line, int size);
+};
+
+
+struct NetCore {
+	NetCore();
+
+	Client *clients[CLIENT_LIMIT];
+	Server *servers[SERVER_LIMIT];
+	int clientCount;
+	int serverCount;
+
+	bool quitFlag;
+
+	int execute();
+
+	Client *findClientWithSessionKey(uint8_t *key) const;
+private:
+	virtual Client *constructClient() = 0;
+};
+
+struct Bouncer : NetCore {
+private:
+	virtual Client *constructClient();
 };
 
 

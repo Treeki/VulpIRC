@@ -17,11 +17,6 @@
 #include "core.h"
 
 
-Client *clients[CLIENT_LIMIT];
-Server *servers[SERVER_LIMIT];
-int clientCount, serverCount;
-bool quitFlag = false;
-
 static gnutls_dh_params_t dh_params;
 static gnutls_certificate_credentials_t serverCreds, clientCreds;
 
@@ -50,17 +45,10 @@ static bool isNullSessionKey(uint8_t *key) {
 	return true;
 }
 
-static Client *findClientWithKey(uint8_t *key) {
-	for (int i = 0; i < clientCount; i++)
-		if (!memcmp(clients[i]->sessionKey, key, SESSION_KEY_SIZE))
-			return clients[i];
-
-	return 0;
-}
 
 
-
-SocketRWCommon::SocketRWCommon() {
+SocketRWCommon::SocketRWCommon(NetCore *_netCore) {
+	netCore = _netCore;
 	sock = -1;
 	state = CS_DISCONNECTED;
 	tlsActive = false;
@@ -196,7 +184,7 @@ void SocketRWCommon::writeAction() {
 
 
 
-Client::Client() {
+Client::Client(NetCore *_netCore) : SocketRWCommon(_netCore) {
 	authState = AS_LOGIN_WAIT;
 	memset(sessionKey, 0, sizeof(sessionKey));
 	readBufPosition = 0;
@@ -292,9 +280,9 @@ void Client::generateSessionKey() {
 		// to check just in case!
 		bool foundMatch = false;
 
-		for (int i = 0; i < clientCount; i++) {
-			if (clients[i] != this) {
-				if (!memcmp(clients[i]->sessionKey, sessionKey, SESSION_KEY_SIZE))
+		for (int i = 0; i < netCore->clientCount; i++) {
+			if (netCore->clients[i] != this) {
+				if (!memcmp(netCore->clients[i]->sessionKey, sessionKey, SESSION_KEY_SIZE))
 					foundMatch = true;
 			}
 		}
@@ -318,32 +306,33 @@ void Client::handleCommand(char *line, int size) {
 		if (strncmp(line, "all ", 4) == 0) {
 			Buffer pkt;
 			pkt.writeStr(&line[4]);
-			for (int i = 0; i < clientCount; i++)
-				clients[i]->sendPacket(Packet::B2C_STATUS, pkt);
+			for (int i = 0; i < netCore->clientCount; i++)
+				netCore->clients[i]->sendPacket(Packet::B2C_STATUS, pkt);
 
 		} else if (strcmp(line, "quit") == 0) {
-			quitFlag = true;
+			netCore->quitFlag = true;
 		} else if (strncmp(line, "resolve ", 8) == 0) {
 			DNS::makeQuery(&line[8]);
 		} else if (strncmp(&line[1], "ddsrv ", 6) == 0) {
-			servers[serverCount] = new Server;
-			strcpy(servers[serverCount]->ircHostname, &line[7]);
-			servers[serverCount]->ircPort = 1191;
-			servers[serverCount]->ircUseTls = (line[0] == 's');
-			serverCount++;
+			int srvID = netCore->serverCount;
+			netCore->servers[srvID] = new Server(netCore);
+			strcpy(netCore->servers[srvID]->ircHostname, &line[7]);
+			netCore->servers[srvID]->ircPort = 1191;
+			netCore->servers[srvID]->ircUseTls = (line[0] == 's');
+			netCore->serverCount++;
 
 			Buffer pkt;
 			pkt.writeStr("Your wish is my command!");
-			for (int i = 0; i < clientCount; i++)
-				clients[i]->sendPacket(Packet::B2C_STATUS, pkt);
+			for (int i = 0; i < netCore->clientCount; i++)
+				netCore->clients[i]->sendPacket(Packet::B2C_STATUS, pkt);
 
 		} else if (strncmp(line, "connsrv", 7) == 0) {
 			int sid = line[7] - '0';
-			servers[sid]->beginConnect();
+			netCore->servers[sid]->beginConnect();
 		} else if (line[0] >= '0' && line[0] <= '9') {
 			int sid = line[0] - '0';
-			servers[sid]->outputBuf.append(&line[1], size - 1);
-			servers[sid]->outputBuf.append("\r\n", 2);
+			netCore->servers[sid]->outputBuf.append(&line[1], size - 1);
+			netCore->servers[sid]->outputBuf.append("\r\n", 2);
 		}
 	} else {
 	}
@@ -391,7 +380,7 @@ void Client::handlePacket(Packet::Type type, char *data, int size) {
 					printf("[fd=%d] Trying to resume session...", sock);
 					printf("(last they received = %d, last we sent = %d)\n", lastReceivedByClient, nextPacketID - 1);
 
-					Client *other = findClientWithKey(reqKey);
+					Client *other = netCore->findClientWithSessionKey(reqKey);
 					printf("[fd=%d] Got client %p\n", sock, other);
 
 					if (other && other->authState == AS_AUTHED) {
@@ -552,7 +541,7 @@ void Client::sendPacketOverWire(const Packet *packet) {
 
 
 
-Server::Server() {
+Server::Server(NetCore *_netCore) : SocketRWCommon(_netCore) {
 	dnsQueryId = -1;
 	ircUseTls = false;
 }
@@ -568,9 +557,9 @@ void Server::handleLine(char *line, int size) {
 
 	Buffer pkt;
 	pkt.writeStr(line, size);
-	for (int i = 0; i < clientCount; i++)
-		if (clients[i]->authState == Client::AS_AUTHED)
-			clients[i]->sendPacket(Packet::B2C_STATUS, pkt);
+	for (int i = 0; i < netCore->clientCount; i++)
+		if (netCore->clients[i]->authState == Client::AS_AUTHED)
+			netCore->clients[i]->sendPacket(Packet::B2C_STATUS, pkt);
 }
 void Server::processReadBuffer() {
 	// Try to process as many lines as we can
@@ -736,32 +725,35 @@ bool initTLS() {
 }
 
 
-int main(int argc, char **argv) {
+NetCore::NetCore() {
 	clientCount = 0;
 	for (int i = 0; i < CLIENT_LIMIT; i++)
 		clients[i] = NULL;
 	serverCount = 0;
 	for (int i = 0; i < SERVER_LIMIT; i++)
 		servers[i] = NULL;
+}
 
+Client *NetCore::findClientWithSessionKey(uint8_t *key) const {
+	for (int i = 0; i < clientCount; i++)
+		if (!memcmp(clients[i]->sessionKey, key, SESSION_KEY_SIZE))
+			return clients[i];
 
-	if (!initTLS())
-		return 0;
+	return 0;
+}
 
-	DNS::start();
-
-
+int NetCore::execute() {
 	// prepare the listen socket
 	int listener = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (listener == -1) {
 		perror("Could not create the listener socket");
-		return 1;
+		return -1;
 	}
 
 	int v = 1;
 	if (setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(v)) == -1) {
 		perror("Could not set SO_REUSEADDR");
-		return 1;
+		return -2;
 	}
 
 	sockaddr_in listenAddr;
@@ -771,17 +763,17 @@ int main(int argc, char **argv) {
 
 	if (bind(listener, (sockaddr *)&listenAddr, sizeof(listenAddr)) == -1) {
 		perror("Could not bind to the listener socket");
-		return 1;
+		return -3;
 	}
 
 	if (!setSocketNonBlocking(listener)) {
 		perror("[Listener] Could not set non-blocking");
-		return 1;
+		return -4;
 	}
 
 	if (listen(listener, 10) == -1) {
 		perror("Could not listen()");
-		return 1;
+		return -5;
 	}
 
 	printf("Listening!\n");
@@ -924,7 +916,7 @@ int main(int argc, char **argv) {
 				// Create a new connection
 				printf("[%d] New connection, fd=%d\n", clientCount, sock);
 
-				Client *client = new Client;
+				Client *client = constructClient();
 
 				clients[clientCount] = client;
 				++clientCount;
@@ -943,6 +935,29 @@ int main(int argc, char **argv) {
 
 	shutdown(listener, SHUT_RDWR);
 	close(listener);
+
+	return 0;
 }
 
 
+Client *Bouncer::constructClient() {
+	return new Client(this);
+}
+
+
+int main(int argc, char **argv) {
+	if (!initTLS())
+		return EXIT_FAILURE;
+
+	DNS::start();
+
+	Bouncer bounce;
+
+	int errcode = bounce.execute();
+	if (errcode < 0) {
+		printf("(Bouncer::execute failed with %d)\n", errcode);
+		return EXIT_FAILURE;
+	} else {
+		return EXIT_SUCCESS;
+	}
+}
