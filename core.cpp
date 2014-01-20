@@ -700,6 +700,42 @@ void Server::close() {
 }
 
 
+bool initTLS() {
+	int ret;
+	ret = gnutls_global_init();
+	if (ret != GNUTLS_E_SUCCESS) {
+		printf("gnutls_global_init failure: %s\n", gnutls_strerror(ret));
+		return false;
+	}
+
+	unsigned int bits = gnutls_sec_param_to_pk_bits(GNUTLS_PK_DH, GNUTLS_SEC_PARAM_LEGACY);
+
+	ret = gnutls_dh_params_init(&dh_params);
+	if (ret != GNUTLS_E_SUCCESS) {
+		printf("dh_params_init failure: %s\n", gnutls_strerror(ret));
+		return false;
+	}
+
+	ret = gnutls_dh_params_generate2(dh_params, bits);
+	if (ret != GNUTLS_E_SUCCESS) {
+		printf("dh_params_generate2 failure: %s\n", gnutls_strerror(ret));
+		return false;
+	}
+
+	gnutls_certificate_allocate_credentials(&clientCreds);
+	ret = gnutls_certificate_set_x509_key_file(clientCreds, "ssl_test.crt", "ssl_test.key", GNUTLS_X509_FMT_PEM);
+	if (ret != GNUTLS_E_SUCCESS) {
+		printf("set_x509_key_file failure: %s\n", gnutls_strerror(ret));
+		return false;
+	}
+	gnutls_certificate_set_dh_params(clientCreds, dh_params);
+
+	gnutls_certificate_allocate_credentials(&serverCreds);
+
+	return true;
+}
+
+
 int main(int argc, char **argv) {
 	clientCount = 0;
 	for (int i = 0; i < CLIENT_LIMIT; i++)
@@ -709,36 +745,8 @@ int main(int argc, char **argv) {
 		servers[i] = NULL;
 
 
-	int ret;
-	ret = gnutls_global_init();
-	if (ret != GNUTLS_E_SUCCESS) {
-		printf("gnutls_global_init failure: %s\n", gnutls_strerror(ret));
-		return 1;
-	}
-
-	unsigned int bits = gnutls_sec_param_to_pk_bits(GNUTLS_PK_DH, GNUTLS_SEC_PARAM_LEGACY);
-
-	ret = gnutls_dh_params_init(&dh_params);
-	if (ret != GNUTLS_E_SUCCESS) {
-		printf("dh_params_init failure: %s\n", gnutls_strerror(ret));
-		return 1;
-	}
-
-	ret = gnutls_dh_params_generate2(dh_params, bits);
-	if (ret != GNUTLS_E_SUCCESS) {
-		printf("dh_params_generate2 failure: %s\n", gnutls_strerror(ret));
-		return 1;
-	}
-
-	gnutls_certificate_allocate_credentials(&clientCreds);
-	ret = gnutls_certificate_set_x509_key_file(clientCreds, "ssl_test.crt", "ssl_test.key", GNUTLS_X509_FMT_PEM);
-	if (ret != GNUTLS_E_SUCCESS) {
-		printf("set_x509_key_file failure: %s\n", gnutls_strerror(ret));
-		return 1;
-	}
-	gnutls_certificate_set_dh_params(clientCreds, dh_params);
-
-	gnutls_certificate_allocate_credentials(&serverCreds);
+	if (!initTLS())
+		return 0;
 
 	DNS::start();
 
