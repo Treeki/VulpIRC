@@ -1,6 +1,21 @@
 #ifndef CORE_H
 #define CORE_H 
 
+#include <string.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <time.h>
+#include <sys/time.h>
+#include <sys/socket.h>
+#include <sys/select.h>
+#include <netinet/in.h>
+#include <gnutls/gnutls.h>
+#include <list>
+
 #include "buffer.h"
 
 #define CLIENT_LIMIT 100
@@ -18,6 +33,8 @@ struct NetCore;
 struct Bouncer;
 
 struct SocketRWCommon {
+	static bool setSocketNonBlocking(int fd); // Move me!
+
 	NetCore *netCore;
 
 	Buffer inputBuf, outputBuf;
@@ -170,5 +187,10 @@ private:
 	virtual Client *constructClient();
 };
 
+
+
+
+// This is ugly as crap, TODO FIXME etc etc
+extern gnutls_certificate_credentials_t g_serverCreds, g_clientCreds;
 
 #endif /* CORE_H */
