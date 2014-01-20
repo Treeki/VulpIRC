@@ -300,43 +300,6 @@ void Client::clearCachedPackets(int maxID) {
 }
 
 
-void Client::handleCommand(char *line, int size) {
-	// This is a terrible mess that will be replaced shortly
-	if (authState == AS_AUTHED) {
-		if (strncmp(line, "all ", 4) == 0) {
-			Buffer pkt;
-			pkt.writeStr(&line[4]);
-			for (int i = 0; i < netCore->clientCount; i++)
-				netCore->clients[i]->sendPacket(Packet::B2C_STATUS, pkt);
-
-		} else if (strcmp(line, "quit") == 0) {
-			netCore->quitFlag = true;
-		} else if (strncmp(line, "resolve ", 8) == 0) {
-			DNS::makeQuery(&line[8]);
-		} else if (strncmp(&line[1], "ddsrv ", 6) == 0) {
-			Server *srv = new Server(netCore);
-			strcpy(srv->ircHostname, &line[7]);
-			srv->ircPort = 1191;
-			srv->ircUseTls = (line[0] == 's');
-			netCore->registerServer(srv);
-
-			Buffer pkt;
-			pkt.writeStr("Your wish is my command!");
-			for (int i = 0; i < netCore->clientCount; i++)
-				netCore->clients[i]->sendPacket(Packet::B2C_STATUS, pkt);
-
-		} else if (strncmp(line, "connsrv", 7) == 0) {
-			int sid = line[7] - '0';
-			netCore->servers[sid]->beginConnect();
-		} else if (line[0] >= '0' && line[0] <= '9') {
-			int sid = line[0] - '0';
-			netCore->servers[sid]->outputBuf.append(&line[1], size - 1);
-			netCore->servers[sid]->outputBuf.append("\r\n", 2);
-		}
-	} else {
-	}
-}
-
 void Client::handlePacket(Packet::Type type, char *data, int size) {
 	Buffer pkt;
 	pkt.useExistingBuffer(data, size);
@@ -399,6 +362,8 @@ void Client::handlePacket(Packet::Type type, char *data, int size) {
 				Buffer pkt;
 				pkt.append((char *)sessionKey, SESSION_KEY_SIZE);
 				sendPacket(Packet::B2C_OOB_LOGIN_SUCCESS, pkt);
+
+				sessionStartEvent();
 			}
 
 		} else {
@@ -406,15 +371,7 @@ void Client::handlePacket(Packet::Type type, char *data, int size) {
 					sock, type, size);
 		}
 	} else if (authState == AS_AUTHED) {
-		if (type == Packet::C2B_COMMAND) {
-			char cmd[2048];
-			pkt.readStr(cmd, sizeof(cmd));
-			handleCommand(cmd, strlen(cmd));
-
-		} else {
-			printf("[fd=%d] Unrecognised packet in AS_AUTHED authstate: type %d, size %d\n",
-					sock, type, size);
-		}
+		packetReceivedEvent(type, pkt);
 	}
 }
 
@@ -536,6 +493,66 @@ void Client::sendPacketOverWire(const Packet *packet) {
 
 	outputBuf.append(header);
 	outputBuf.append(packet->data);
+}
+
+
+
+MobileClient::MobileClient(Bouncer *_bouncer) : Client(_bouncer) {
+}
+
+void MobileClient::sessionStartEvent() {
+	printf("{Session started}\n");
+}
+void MobileClient::sessionEndEvent() {
+	printf("{Session ended}\n");
+}
+void MobileClient::packetReceivedEvent(Packet::Type type, Buffer &pkt) {
+	if (type == Packet::C2B_COMMAND) {
+		char cmd[2048];
+		pkt.readStr(cmd, sizeof(cmd));
+		handleDebugCommand(cmd, strlen(cmd));
+
+	} else {
+		printf("[fd=%d] Unrecognised packet for MobileClient: type %d, size %d\n",
+			sock, type, pkt.size());
+	}
+}
+
+void MobileClient::handleDebugCommand(char *line, int size) {
+	// This is a terrible mess that will be replaced shortly
+	if (authState == AS_AUTHED) {
+		if (strncmp(line, "all ", 4) == 0) {
+			Buffer pkt;
+			pkt.writeStr(&line[4]);
+			for (int i = 0; i < netCore->clientCount; i++)
+				netCore->clients[i]->sendPacket(Packet::B2C_STATUS, pkt);
+
+		} else if (strcmp(line, "quit") == 0) {
+			netCore->quitFlag = true;
+		} else if (strncmp(line, "resolve ", 8) == 0) {
+			DNS::makeQuery(&line[8]);
+		} else if (strncmp(&line[1], "ddsrv ", 6) == 0) {
+			Server *srv = new Server(netCore);
+			strcpy(srv->ircHostname, &line[7]);
+			srv->ircPort = 1191;
+			srv->ircUseTls = (line[0] == 's');
+			netCore->registerServer(srv);
+
+			Buffer pkt;
+			pkt.writeStr("Your wish is my command!");
+			for (int i = 0; i < netCore->clientCount; i++)
+				netCore->clients[i]->sendPacket(Packet::B2C_STATUS, pkt);
+
+		} else if (strncmp(line, "connsrv", 7) == 0) {
+			int sid = line[7] - '0';
+			netCore->servers[sid]->beginConnect();
+		} else if (line[0] >= '0' && line[0] <= '9') {
+			int sid = line[0] - '0';
+			netCore->servers[sid]->outputBuf.append(&line[1], size - 1);
+			netCore->servers[sid]->outputBuf.append("\r\n", 2);
+		}
+	} else {
+	}
 }
 
 
@@ -832,6 +849,9 @@ int NetCore::execute() {
 
 					// Yep.
 					Client *client = clients[i];
+					if (client->authState == Client::AS_AUTHED)
+						client->sessionEndEvent();
+					delete client;
 
 					// If this is the last socket in the list, we can just
 					// decrement clientCount and all will be fine.
@@ -963,7 +983,7 @@ int NetCore::execute() {
 
 
 Client *Bouncer::constructClient() {
-	return new Client(this);
+	return new MobileClient(this);
 }
 
 

@@ -15,6 +15,7 @@
 #define SERVE_VIA_TLS false
 
 struct NetCore;
+struct Bouncer;
 
 struct SocketRWCommon {
 	NetCore *netCore;
@@ -91,13 +92,33 @@ struct Client : SocketRWCommon {
 private:
 	int readBufPosition;
 	void processReadBuffer();
-	void handlePacket(Packet::Type type, char *data, int size);
-	void handleCommand(char *line, int size);
 
 	void generateSessionKey();
 	void resumeSession(Client *other, int lastReceivedByClient);
+
+	void handlePacket(Packet::Type type, char *data, int size);
 	void sendPacketOverWire(const Packet *packet);
 	void clearCachedPackets(int maxID);
+
+	// Events!
+public:
+	virtual void sessionEndEvent() = 0;
+private:
+	virtual void sessionStartEvent() = 0;
+	virtual void packetReceivedEvent(Packet::Type type, Buffer &pkt) = 0;
+};
+
+struct MobileClient : Client {
+	Bouncer *bouncer;
+
+	MobileClient(Bouncer *_bouncer);
+
+private:
+	virtual void sessionStartEvent();
+	virtual void sessionEndEvent();
+	virtual void packetReceivedEvent(Packet::Type type, Buffer &pkt);
+
+	void handleDebugCommand(char *line, int size);
 };
 
 struct Server : SocketRWCommon {
