@@ -166,12 +166,13 @@ void Client::handlePacket(Packet::Type type, char *data, int size) {
 
 				if (!isNullSessionKey(reqKey)) {
 					printf("[fd=%d] Trying to resume session...", sock);
-					printf("(last they received = %d, last we sent = %d)\n", lastReceivedByClient, nextPacketID - 1);
+					printf("(last they received = %d)\n", lastReceivedByClient);
 
 					Client *other = netCore->findClientWithSessionKey(reqKey);
 					printf("[fd=%d] Got client %p\n", sock, other);
 
 					if (other && other->authState == AS_AUTHED) {
+						printf("Valid: last packet we sent = %d\n", other->nextPacketID - 1);
 						// Yep, we can go!
 						other->resumeSession(this, lastReceivedByClient);
 						return;

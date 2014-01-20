@@ -1,6 +1,7 @@
 #include "core.h"
 
 MobileClient::MobileClient(Bouncer *_bouncer) : Client(_bouncer) {
+	bouncer = _bouncer;
 }
 
 void MobileClient::sessionStartEvent() {
@@ -33,11 +34,11 @@ void MobileClient::handleDebugCommand(char *line, int size) {
 		} else if (strcmp(line, "quit") == 0) {
 			netCore->quitFlag = true;
 		} else if (strncmp(&line[1], "ddsrv ", 6) == 0) {
-			Server *srv = new Server(netCore);
-			strcpy(srv->ircHostname, &line[7]);
-			srv->ircPort = 1191;
-			srv->ircUseTls = (line[0] == 's');
-			netCore->registerServer(srv);
+			IRCServer *srv = new IRCServer(bouncer);
+			strcpy(srv->config.hostname, &line[7]);
+			srv->config.port = 1191;
+			srv->config.useTls = (line[0] == 's');
+			bouncer->registerServer(srv);
 
 			Buffer pkt;
 			pkt.writeStr("Your wish is my command!");
@@ -46,7 +47,8 @@ void MobileClient::handleDebugCommand(char *line, int size) {
 
 		} else if (strncmp(line, "connsrv", 7) == 0) {
 			int sid = line[7] - '0';
-			netCore->servers[sid]->beginConnect();
+			// ugly hack, fuck casting, will fix later
+			((IRCServer*)netCore->servers[sid])->connect();
 		} else if (line[0] >= '0' && line[0] <= '9') {
 			int sid = line[0] - '0';
 			netCore->servers[sid]->outputBuf.append(&line[1], size - 1);

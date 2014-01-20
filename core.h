@@ -139,15 +139,18 @@ private:
 };
 
 struct Server : SocketRWCommon {
-	char ircHostname[256];
-	int ircPort;
+	int port;
+	bool useTls;
+
 	int dnsQueryId;
-	bool ircUseTls;
 
 	Server(NetCore *_netCore);
 	~Server();
 
-	void beginConnect();
+protected:
+	void connect(const char *hostname, int _port, bool _useTls);
+
+public:
 	void tryConnectPhase();
 	void connectionSuccessful();
 
@@ -156,6 +159,24 @@ struct Server : SocketRWCommon {
 private:
 	void processReadBuffer();
 	void handleLine(char *line, int size);
+};
+
+struct IRCNetworkConfig {
+	char hostname[512];
+	char nickname[128];
+	char realname[128];
+	char password[128];
+	int port;
+	bool useTls;
+};
+
+struct IRCServer : Server {
+	Bouncer *bouncer;
+	IRCNetworkConfig config;
+
+	IRCServer(Bouncer *_bouncer);
+
+	void connect();
 };
 
 

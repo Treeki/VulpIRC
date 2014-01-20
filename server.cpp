@@ -3,7 +3,6 @@
 
 Server::Server(NetCore *_netCore) : SocketRWCommon(_netCore) {
 	dnsQueryId = -1;
-	ircUseTls = false;
 }
 Server::~Server() {
 	if (dnsQueryId != -1)
@@ -46,10 +45,13 @@ void Server::processReadBuffer() {
 
 
 
-void Server::beginConnect() {
+void Server::connect(const char *hostname, int _port, bool _useTls) {
 	if (state == CS_DISCONNECTED) {
+		port = _port;
+		useTls = _useTls;
+
 		DNS::closeQuery(dnsQueryId); // just in case
-		dnsQueryId = DNS::makeQuery(ircHostname);
+		dnsQueryId = DNS::makeQuery(hostname);
 
 		if (dnsQueryId == -1) {
 			// TODO: better error reporting
@@ -91,10 +93,10 @@ void Server::tryConnectPhase() {
 				// We have our non-blocking socket, let's try connecting!
 				sockaddr_in outAddr;
 				outAddr.sin_family = AF_INET;
-				outAddr.sin_port = htons(ircPort);
+				outAddr.sin_port = htons(port);
 				outAddr.sin_addr.s_addr = result.s_addr;
 
-				if (connect(sock, (sockaddr *)&outAddr, sizeof(outAddr)) == -1) {
+				if (::connect(sock, (sockaddr *)&outAddr, sizeof(outAddr)) == -1) {
 					if (errno == EINPROGRESS) {
 						state = CS_WAITING_CONNECT;
 					} else {
@@ -117,7 +119,7 @@ void Server::connectionSuccessful() {
 	outputBuf.clear();
 
 	// Do we need to do any TLS junk?
-	if (ircUseTls) {
+	if (useTls) {
 		int initRet = gnutls_init(&tls, GNUTLS_CLIENT);
 		if (initRet != GNUTLS_E_SUCCESS) {
 			printf("[Server::connectionSuccessful] gnutls_init borked\n");
@@ -147,3 +149,5 @@ void Server::close() {
 		dnsQueryId = -1;
 	}
 }
+
+
