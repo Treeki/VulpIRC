@@ -55,7 +55,7 @@ struct SocketRWCommon {
 	SocketRWCommon(NetCore *_netCore);
 	virtual ~SocketRWCommon();
 
-	void tryTLSHandshake();
+	bool tryTLSHandshake();
 	virtual void close();
 
 	void readAction();
@@ -154,16 +154,23 @@ public:
 	void tryConnectPhase();
 	void connectionSuccessful();
 
+	void sendLine(const char *line); // protect me!
 	void close();
 
 private:
 	void processReadBuffer();
-	void handleLine(char *line, int size);
+
+public:
+	virtual void connectedEvent() = 0; // PRIVATE ME
+private:
+	virtual void disconnectedEvent() = 0;
+	virtual void lineReceivedEvent(char *line, int size) = 0;
 };
 
 struct IRCNetworkConfig {
 	char hostname[512];
 	char nickname[128];
+	char username[128];
 	char realname[128];
 	char password[128];
 	int port;
@@ -177,6 +184,12 @@ struct IRCServer : Server {
 	IRCServer(Bouncer *_bouncer);
 
 	void connect();
+
+	// Events!
+private:
+	virtual void connectedEvent();
+	virtual void disconnectedEvent();
+	virtual void lineReceivedEvent(char *line, int size);
 };
 
 

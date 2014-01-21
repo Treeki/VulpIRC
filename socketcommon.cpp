@@ -32,13 +32,13 @@ bool SocketRWCommon::hasTlsPendingData() const {
 		return false;
 }
 
-void SocketRWCommon::tryTLSHandshake() {
+bool SocketRWCommon::tryTLSHandshake() {
 	int hsRet = gnutls_handshake(tls);
 	if (gnutls_error_is_fatal(hsRet)) {
 		printf("[SocketRWCommon::tryTLSHandshake] gnutls_handshake borked\n");
 		gnutls_perror(hsRet);
 		close();
-		return;
+		return false;
 	}
 
 	if (hsRet == GNUTLS_E_SUCCESS) {
@@ -49,7 +49,10 @@ void SocketRWCommon::tryTLSHandshake() {
 		outputBuf.clear();
 
 		printf("[SocketRWCommon connected via SSL!]\n");
+		return true;
 	}
+
+	return false;
 }
 
 void SocketRWCommon::close() {

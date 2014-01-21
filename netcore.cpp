@@ -131,8 +131,10 @@ int NetCore::execute() {
 		for (int i = 0; i < serverCount; i++) {
 			if (servers[i]->state == Server::CS_WAITING_DNS)
 				servers[i]->tryConnectPhase();
-			else if (servers[i]->state == Server::CS_TLS_HANDSHAKE)
-				servers[i]->tryTLSHandshake();
+			else if (servers[i]->state == Server::CS_TLS_HANDSHAKE) {
+				if (servers[i]->tryTLSHandshake())
+					servers[i]->connectedEvent();
+			}
 
 			if (servers[i]->sock != -1) {
 				if (servers[i]->sock > maxFD)
@@ -237,6 +239,13 @@ int NetCore::execute() {
 
 	shutdown(listener, SHUT_RDWR);
 	close(listener);
+
+	for (int i = 0; i < serverCount; i++)
+		delete servers[i];
+	for (int i = 0; i < clientCount; i++)
+		delete clients[i];
+
+	serverCount = clientCount = 0;
 
 	return 0;
 }

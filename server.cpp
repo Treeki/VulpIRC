@@ -7,19 +7,11 @@ Server::Server(NetCore *_netCore) : SocketRWCommon(_netCore) {
 Server::~Server() {
 	if (dnsQueryId != -1)
 		DNS::closeQuery(dnsQueryId);
+	close();
 }
 
 
 
-void Server::handleLine(char *line, int size) {
-	printf("[%d] { %s }\n", size, line);
-
-	Buffer pkt;
-	pkt.writeStr(line, size);
-	for (int i = 0; i < netCore->clientCount; i++)
-		if (netCore->clients[i]->authState == Client::AS_AUTHED)
-			netCore->clients[i]->sendPacket(Packet::B2C_STATUS, pkt);
-}
 void Server::processReadBuffer() {
 	// Try to process as many lines as we can
 	char *buf = inputBuf.data();
@@ -30,7 +22,7 @@ void Server::processReadBuffer() {
 		if (buf[pos] == '\r' || buf[pos] == '\n') {
 			if (pos > lineBegin) {
 				buf[pos] = 0;
-				handleLine(&buf[lineBegin], pos - lineBegin);
+				lineReceivedEvent(&buf[lineBegin], pos - lineBegin);
 			}
 
 			lineBegin = pos + 1;
@@ -43,6 +35,10 @@ void Server::processReadBuffer() {
 	inputBuf.trimFromStart(lineBegin);
 }
 
+void Server::sendLine(const char *line) {
+	outputBuf.append(line, strlen(line));
+	outputBuf.append("\r\n", 2);
+}
 
 
 void Server::connect(const char *hostname, int _port, bool _useTls) {
@@ -120,6 +116,8 @@ void Server::connectionSuccessful() {
 
 	// Do we need to do any TLS junk?
 	if (useTls) {
+		state = CS_TLS_HANDSHAKE;
+
 		int initRet = gnutls_init(&tls, GNUTLS_CLIENT);
 		if (initRet != GNUTLS_E_SUCCESS) {
 			printf("[Server::connectionSuccessful] gnutls_init borked\n");
@@ -137,17 +135,23 @@ void Server::connectionSuccessful() {
 		gnutls_transport_set_int(tls, sock);
 
 		tlsActive = true;
-		state = CS_TLS_HANDSHAKE;
+	} else {
+		connectedEvent();
 	}
 }
 
 void Server::close() {
+	int saveState = state;
+
 	SocketRWCommon::close();
 
 	if (dnsQueryId != -1) {
 		DNS::closeQuery(dnsQueryId);
 		dnsQueryId = -1;
 	}
+
+	if (saveState == CS_CONNECTED)
+		disconnectedEvent();
 }
 
 

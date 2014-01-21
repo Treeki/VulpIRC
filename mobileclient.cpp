@@ -36,8 +36,12 @@ void MobileClient::handleDebugCommand(char *line, int size) {
 		} else if (strncmp(&line[1], "ddsrv ", 6) == 0) {
 			IRCServer *srv = new IRCServer(bouncer);
 			strcpy(srv->config.hostname, &line[7]);
-			srv->config.port = 1191;
 			srv->config.useTls = (line[0] == 's');
+			srv->config.port = (line[0] == 's') ? 1191 : 6667;
+			strcpy(srv->config.nickname, "Ninjifox");
+			strcpy(srv->config.username, "boop");
+			strcpy(srv->config.realname, "boop");
+			strcpy(srv->config.password, "");
 			bouncer->registerServer(srv);
 
 			Buffer pkt;
@@ -45,14 +49,18 @@ void MobileClient::handleDebugCommand(char *line, int size) {
 			for (int i = 0; i < netCore->clientCount; i++)
 				netCore->clients[i]->sendPacket(Packet::B2C_STATUS, pkt);
 
+		} else if (strncmp(line, "srvpw", 5) == 0) {
+			int sid = line[5] - '0';
+			// ugly hack, fuck casting, will fix later
+			strcpy(((IRCServer*)netCore->servers[sid])->config.password, &line[7]);
+
 		} else if (strncmp(line, "connsrv", 7) == 0) {
 			int sid = line[7] - '0';
 			// ugly hack, fuck casting, will fix later
 			((IRCServer*)netCore->servers[sid])->connect();
 		} else if (line[0] >= '0' && line[0] <= '9') {
 			int sid = line[0] - '0';
-			netCore->servers[sid]->outputBuf.append(&line[1], size - 1);
-			netCore->servers[sid]->outputBuf.append("\r\n", 2);
+			netCore->servers[sid]->sendLine(&line[1]);
 		}
 	} else {
 	}
