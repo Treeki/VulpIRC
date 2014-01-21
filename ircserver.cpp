@@ -32,6 +32,6 @@ void IRCServer::lineReceivedEvent(char *line, int size) {
 	Buffer pkt;
 	pkt.writeStr(line, size);
 	for (int i = 0; i < bouncer->clientCount; i++)
-		if (bouncer->clients[i]->authState == Client::AS_AUTHED)
+		if (bouncer->clients[i]->isAuthed())
 			bouncer->clients[i]->sendPacket(Packet::B2C_STATUS, pkt);
 }

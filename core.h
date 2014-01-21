@@ -29,12 +29,16 @@
 
 #define SERVE_VIA_TLS false
 
-struct NetCore;
-struct Bouncer;
+class NetCore;
+class Bouncer;
 
-struct SocketRWCommon {
+class SocketRWCommon {
+public:
 	static bool setSocketNonBlocking(int fd); // Move me!
 
+	friend class NetCore;
+
+protected:
 	NetCore *netCore;
 
 	Buffer inputBuf, outputBuf;
@@ -52,16 +56,19 @@ struct SocketRWCommon {
 	gnutls_session_t tls;
 	bool tlsActive;
 
+public:
 	SocketRWCommon(NetCore *_netCore);
 	virtual ~SocketRWCommon();
 
-	bool tryTLSHandshake();
 	virtual void close();
+
+private:
+	bool tryTLSHandshake();
 
 	void readAction();
 	void writeAction();
 	bool hasTlsPendingData() const;
-private:
+
 	virtual void processReadBuffer() = 0;
 };
 
@@ -85,7 +92,9 @@ struct Packet {
 	Buffer data;
 };
 
-struct Client : SocketRWCommon {
+class Client : private SocketRWCommon {
+	friend class NetCore;
+private:
 	enum AuthState {
 		AS_LOGIN_WAIT = 0,
 		AS_AUTHED = 1
@@ -98,15 +107,19 @@ struct Client : SocketRWCommon {
 	std::list<Packet *> packetCache;
 	int nextPacketID, lastReceivedPacketID;
 
+public:
 	Client(NetCore *_netCore);
 	~Client();
 
-	void startService(int _sock, bool withTls);
+	bool isAuthed() const { return (authState == AS_AUTHED); }
+
 	void close();
 
 	void sendPacket(Packet::Type type, const Buffer &data, bool allowUnauthed = false);
 
 private:
+	void startService(int _sock, bool withTls);
+
 	int readBufPosition;
 	void processReadBuffer();
 
@@ -118,14 +131,13 @@ private:
 	void clearCachedPackets(int maxID);
 
 	// Events!
-public:
-	virtual void sessionEndEvent() = 0;
-private:
 	virtual void sessionStartEvent() = 0;
+	virtual void sessionEndEvent() = 0;
 	virtual void packetReceivedEvent(Packet::Type type, Buffer &pkt) = 0;
 };
 
-struct MobileClient : Client {
+class MobileClient : public Client {
+public:
 	Bouncer *bouncer;
 
 	MobileClient(Bouncer *_bouncer);
@@ -138,12 +150,15 @@ private:
 	void handleDebugCommand(char *line, int size);
 };
 
-struct Server : SocketRWCommon {
+class Server : private SocketRWCommon {
+	friend class NetCore;
+
 	int port;
 	bool useTls;
 
 	int dnsQueryId;
 
+public:
 	Server(NetCore *_netCore);
 	~Server();
 
@@ -151,18 +166,16 @@ protected:
 	void connect(const char *hostname, int _port, bool _useTls);
 
 public:
-	void tryConnectPhase();
-	void connectionSuccessful();
-
 	void sendLine(const char *line); // protect me!
 	void close();
 
 private:
+	void tryConnectPhase();
+	void connectionSuccessful();
 	void processReadBuffer();
 
-public:
-	virtual void connectedEvent() = 0; // PRIVATE ME
 private:
+	virtual void connectedEvent() = 0;
 	virtual void disconnectedEvent() = 0;
 	virtual void lineReceivedEvent(char *line, int size) = 0;
 };
@@ -177,8 +190,9 @@ struct IRCNetworkConfig {
 	bool useTls;
 };
 
-struct IRCServer : Server {
+class IRCServer : public Server {
 	Bouncer *bouncer;
+public:
 	IRCNetworkConfig config;
 
 	IRCServer(Bouncer *_bouncer);
@@ -193,7 +207,8 @@ private:
 };
 
 
-struct NetCore {
+class NetCore {
+public:
 	NetCore();
 
 	Client *clients[CLIENT_LIMIT];
@@ -216,7 +231,7 @@ protected:
 	int findServerID(Server *server) const;
 };
 
-struct Bouncer : NetCore {
+class Bouncer : public NetCore {
 private:
 	virtual Client *constructClient();
 };
