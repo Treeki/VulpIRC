@@ -15,6 +15,7 @@
 #include <netinet/in.h>
 #include <gnutls/gnutls.h>
 #include <list>
+#include <map>
 #include <string>
 
 #include "buffer.h"
@@ -33,6 +34,14 @@
 class NetCore;
 class Bouncer;
 class IRCServer;
+
+// Need to move this somewhere more appropriate
+struct UserRef {
+	std::string nick, ident, hostmask;
+	bool isSelf, isValid;
+
+	UserRef() { isSelf = false; isValid = false; }
+};
 
 
 class Window {
@@ -62,6 +71,26 @@ public:
 	virtual const char *getTitle() const;
 	virtual int getType() const;
 	virtual void handleUserInput(const char *str);
+};
+
+class Channel : public Window {
+public:
+	Channel(IRCServer *_server, const char *_name);
+
+	IRCServer *server;
+
+	bool inChannel;
+
+	std::string name, topic;
+	std::map<std::string, uint32_t> users;
+
+	virtual const char *getTitle() const;
+	virtual int getType() const;
+	virtual void handleUserInput(const char *str);
+	virtual void syncStateForClient(Buffer &output);
+
+	void handleJoin(const UserRef &user);
+	void handlePrivmsg(const UserRef &user, const char *str);
 };
 
 
@@ -236,8 +265,13 @@ public:
 	Bouncer *bouncer;
 
 	StatusWindow status;
+	std::map<std::string, Channel *> channels;
 
 	IRCNetworkConfig config;
+
+	char currentNick[128];
+	char serverPrefix[32], serverPrefixMode[32];
+	std::string serverChannelModes[4];
 
 	IRCServer(Bouncer *_bouncer);
 	~IRCServer();
@@ -251,6 +285,12 @@ private:
 	virtual void lineReceivedEvent(char *line, int size);
 
 	virtual void attachedToCore();
+
+
+	void resetIRCState();
+	void processISupport(const char *str);
+
+	Channel *findChannel(const char *name, bool createIfNeeded);
 };
 
 

@@ -43,9 +43,9 @@ void Window::pushMessage(const char *str) {
 
 
 StatusWindow::StatusWindow(IRCServer *_server) :
-	Window(_server->bouncer)
+	Window(_server->bouncer),
+	server(_server)
 {
-	server = _server;
 }
 
 const char *StatusWindow::getTitle() const {
@@ -76,4 +76,63 @@ void StatusWindow::handleUserInput(const char *str) {
 	} else {
 		server->sendLine(str);
 	}
+}
+
+
+
+
+Channel::Channel(IRCServer *_server, const char *_name) :
+	Window(_server->bouncer),
+	server(_server),
+	inChannel(false),
+	name(_name)
+{
+	server->bouncer->registerWindow(this);
+}
+
+const char *Channel::getTitle() const {
+	return name.c_str();
+}
+
+int Channel::getType() const {
+	return 2;
+}
+
+void Channel::handleUserInput(const char *str) {
+	if (str[0] == '/') {
+	} else {
+		server->sendLine(str);
+	}
+}
+
+void Channel::syncStateForClient(Buffer &output) {
+	Window::syncStateForClient(output);
+}
+
+
+
+void Channel::handleJoin(const UserRef &user) {
+	if (user.isSelf) {
+		users.clear();
+		inChannel = true;
+		pushMessage("You have joined the channel!");
+	} else {
+		char buf[1024];
+		snprintf(buf, 1024,
+			"%s (%s@%s) has joined",
+			user.nick.c_str(),
+			user.ident.c_str(),
+			user.hostmask.c_str());
+
+		pushMessage(buf);
+	}
+}
+void Channel::handlePrivmsg(const UserRef &user, const char *str) {
+	char buf[15000];
+	snprintf(buf, 15000,
+		"<%s> %s",
+		user.nick.c_str(),
+		str);
+	
+	pushMessage(buf);
 }
