@@ -135,7 +135,7 @@ void SocketRWCommon::writeAction() {
 	}
 
 	if (amount > 0) {
-		printf("[fd=%d] Wrote %d bytes\n", sock, amount);
+		printf("[fd=%d] Wrote %d bytes out of %d\n", sock, amount, outputBuf.size());
 		outputBuf.trimFromStart(amount);
 	} else if (amount == 0)
 		printf("Sent 0!\n");

@@ -8,6 +8,8 @@ NetCore::NetCore() {
 	serverCount = 0;
 	for (int i = 0; i < SERVER_LIMIT; i++)
 		servers[i] = NULL;
+
+	nextWindowID = 1;
 }
 
 Client *NetCore::findClientWithSessionKey(uint8_t *key) const {
@@ -24,6 +26,7 @@ int NetCore::registerServer(Server *server) {
 
 	int id = serverCount++;
 	servers[id] = server;
+	server->attachedToCore();
 	return id;
 }
 void NetCore::deregisterServer(int id) {
@@ -251,8 +254,54 @@ int NetCore::execute() {
 }
 
 
+
+int NetCore::registerWindow(Window *window) {
+	window->id = nextWindowID;
+	nextWindowID++;
+
+	windows.push_back(window);
+
+
+	Buffer pkt;
+	pkt.writeU32(1);
+	window->syncStateForClient(pkt);
+
+	for (int i = 0; i < clientCount; i++)
+		if (clients[i]->isAuthed())
+			clients[i]->sendPacket(Packet::B2C_WINDOW_ADD, pkt);
+}
+
+void NetCore::deregisterWindow(Window *window) {
+	Buffer pkt;
+	pkt.writeU32(1);
+	pkt.writeU32(window->id);
+
+	for (int i = 0; i < clientCount; i++)
+		if (clients[i]->isAuthed())
+			clients[i]->sendPacket(Packet::B2C_WINDOW_REMOVE, pkt);
+
+	windows.remove(window);
+}
+
+Window *NetCore::findWindow(int id) const {
+	std::list<Window *>::const_iterator
+		i = windows.begin(),
+		e = windows.end();
+
+	for (; i != e; ++i)
+		if ((*i)->id == id)
+			return *i;
+
+	return 0;
+}
+
+
+
+
 Client *Bouncer::constructClient() {
 	return new MobileClient(this);
 }
+
+
 
 

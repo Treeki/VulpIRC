@@ -1,16 +1,29 @@
 #include "core.h"
 
-IRCServer::IRCServer(Bouncer *_bouncer) : Server(_bouncer) {
-	bouncer = _bouncer;
+IRCServer::IRCServer(Bouncer *_bouncer) :
+	Server(_bouncer),
+	bouncer(_bouncer),
+	status(this)
+{
+}
+
+IRCServer::~IRCServer() {
+	bouncer->deregisterWindow(&status);
+}
+
+void IRCServer::attachedToCore() {
+	bouncer->registerWindow(&status);
 }
 
 void IRCServer::connect() {
+	status.pushMessage("Connecting...");
 	Server::connect(config.hostname, config.port, config.useTls);
 }
 
 
 void IRCServer::connectedEvent() {
 	printf("[IRCServer:%p] connectedEvent\n", this);
+	status.pushMessage("Connected, identifying to IRC...");
 
 	char buf[2048];
 
@@ -25,13 +38,10 @@ void IRCServer::connectedEvent() {
 }
 void IRCServer::disconnectedEvent() {
 	printf("[IRCServer:%p] disconnectedEvent\n", this);
+	status.pushMessage("Disconnected.");
 }
 void IRCServer::lineReceivedEvent(char *line, int size) {
 	printf("[%d] { %s }\n", size, line);
 
-	Buffer pkt;
-	pkt.writeStr(line, size);
-	for (int i = 0; i < bouncer->clientCount; i++)
-		if (bouncer->clients[i]->isAuthed())
-			bouncer->clients[i]->sendPacket(Packet::B2C_STATUS, pkt);
+	status.pushMessage(line);
 }

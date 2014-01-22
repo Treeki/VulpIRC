@@ -15,6 +15,7 @@
 #include <netinet/in.h>
 #include <gnutls/gnutls.h>
 #include <list>
+#include <string>
 
 #include "buffer.h"
 
@@ -31,6 +32,39 @@
 
 class NetCore;
 class Bouncer;
+class IRCServer;
+
+
+class Window {
+public:
+	NetCore *core;
+
+	Window(NetCore *_core);
+	virtual ~Window() { }
+
+	int id;
+	std::list<std::string> messages;
+
+	virtual const char *getTitle() const = 0;
+	virtual int getType() const = 0;
+	virtual void syncStateForClient(Buffer &output);
+	virtual void handleUserInput(const char *str) { }
+
+	void pushMessage(const char *str);
+};
+
+class StatusWindow : public Window {
+public:
+	StatusWindow(IRCServer *_server);
+
+	IRCServer *server;
+
+	virtual const char *getTitle() const;
+	virtual int getType() const;
+	virtual void handleUserInput(const char *str);
+};
+
+
 
 class SocketRWCommon {
 public:
@@ -79,6 +113,12 @@ struct Packet {
 
 		C2B_COMMAND = 1,
 		B2C_STATUS = 1,
+
+		B2C_WINDOW_ADD = 0x100,
+		B2C_WINDOW_REMOVE = 0x101,
+		B2C_WINDOW_MESSAGE = 0x102,
+
+		C2B_WINDOW_INPUT = 0x102,
 
 		C2B_OOB_LOGIN = 0x8001,
 
@@ -160,7 +200,7 @@ class Server : private SocketRWCommon {
 
 public:
 	Server(NetCore *_netCore);
-	~Server();
+	virtual ~Server();
 
 protected:
 	void connect(const char *hostname, int _port, bool _useTls);
@@ -174,10 +214,11 @@ private:
 	void connectionSuccessful();
 	void processReadBuffer();
 
-private:
 	virtual void connectedEvent() = 0;
 	virtual void disconnectedEvent() = 0;
 	virtual void lineReceivedEvent(char *line, int size) = 0;
+
+	virtual void attachedToCore() { }
 };
 
 struct IRCNetworkConfig {
@@ -191,11 +232,15 @@ struct IRCNetworkConfig {
 };
 
 class IRCServer : public Server {
-	Bouncer *bouncer;
 public:
+	Bouncer *bouncer;
+
+	StatusWindow status;
+
 	IRCNetworkConfig config;
 
 	IRCServer(Bouncer *_bouncer);
+	~IRCServer();
 
 	void connect();
 
@@ -204,6 +249,8 @@ private:
 	virtual void connectedEvent();
 	virtual void disconnectedEvent();
 	virtual void lineReceivedEvent(char *line, int size);
+
+	virtual void attachedToCore();
 };
 
 
@@ -215,6 +262,13 @@ public:
 	Server *servers[SERVER_LIMIT];
 	int clientCount;
 	int serverCount;
+
+	std::list<Window *> windows;
+	int nextWindowID;
+
+	int registerWindow(Window *window);
+	void deregisterWindow(Window *window);
+	Window *findWindow(int id) const;
 
 	bool quitFlag;
 

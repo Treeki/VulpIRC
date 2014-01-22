@@ -6,6 +6,18 @@ MobileClient::MobileClient(Bouncer *_bouncer) : Client(_bouncer) {
 
 void MobileClient::sessionStartEvent() {
 	printf("{Session started}\n");
+
+	Buffer syncPacket;
+	syncPacket.writeU32(bouncer->windows.size());
+
+	std::list<Window *>::iterator
+		i = bouncer->windows.begin(),
+		e = bouncer->windows.end();
+
+	for (; i != e; ++i)
+		(*i)->syncStateForClient(syncPacket);
+
+	sendPacket(Packet::B2C_WINDOW_ADD, syncPacket);
 }
 void MobileClient::sessionEndEvent() {
 	printf("{Session ended}\n");
@@ -15,6 +27,19 @@ void MobileClient::packetReceivedEvent(Packet::Type type, Buffer &pkt) {
 		char cmd[2048];
 		pkt.readStr(cmd, sizeof(cmd));
 		handleDebugCommand(cmd, strlen(cmd));
+
+	} else if (type == Packet::C2B_WINDOW_INPUT) {
+		int winID = pkt.readU32();
+		Window *window = bouncer->findWindow(winID);
+		if (!window) {
+			printf("[MobileClient:%p] Message for unknown window %d\n", this, winID);
+			return;
+		}
+
+		char text[8192];
+		pkt.readStr(text, sizeof(text));
+
+		window->handleUserInput(text);
 
 	} else {
 		printf("[MobileClient:%p] Unrecognised packet for MobileClient: type %d, size %d\n",
@@ -47,19 +72,6 @@ void MobileClient::handleDebugCommand(char *line, int size) {
 		pkt.writeStr("Your wish is my command!");
 		for (int i = 0; i < bouncer->clientCount; i++)
 			bouncer->clients[i]->sendPacket(Packet::B2C_STATUS, pkt);
-
-	} else if (strncmp(line, "srvpw", 5) == 0) {
-		int sid = line[5] - '0';
-			// ugly hack, fuck casting, will fix later
-		strcpy(((IRCServer*)bouncer->servers[sid])->config.password, &line[7]);
-
-	} else if (strncmp(line, "connsrv", 7) == 0) {
-		int sid = line[7] - '0';
-			// ugly hack, fuck casting, will fix later
-		((IRCServer*)bouncer->servers[sid])->connect();
-	} else if (line[0] >= '0' && line[0] <= '9') {
-		int sid = line[0] - '0';
-		bouncer->servers[sid]->sendLine(&line[1]);
 	}
 }
 
