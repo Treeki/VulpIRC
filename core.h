@@ -155,8 +155,14 @@ struct Packet {
 		B2C_WINDOW_ADD = 0x100,
 		B2C_WINDOW_REMOVE = 0x101,
 		B2C_WINDOW_MESSAGE = 0x102,
+		B2C_WINDOW_RENAME = 0x103,
 
 		C2B_WINDOW_INPUT = 0x102,
+
+		B2C_CHANNEL_USER_ADD = 0x120,
+		B2C_CHANNEL_USER_REMOVE = 0x121,
+		B2C_CHANNEL_USER_RENAME = 0x122,
+		B2C_CHANNEL_USER_MODES = 0x123,
 
 		C2B_OOB_LOGIN = 0x8001,
 
@@ -316,6 +322,8 @@ public:
 	Server *servers[SERVER_LIMIT];
 	int clientCount;
 	int serverCount;
+
+	void sendToClients(Packet::Type type, const Buffer &data);
 
 	std::list<Window *> windows;
 	int nextWindowID;

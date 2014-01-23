@@ -137,6 +137,7 @@ class WindowTab(QtWidgets.QWidget):
 		self.input = QtWidgets.QLineEdit(self)
 		self.input.returnPressed.connect(self.handleLineEntered)
 
+	def makeLayout(self):
 		layout = QtWidgets.QVBoxLayout(self)
 		layout.addWidget(self.output)
 		layout.addWidget(self.input)
@@ -160,6 +161,105 @@ class WindowTab(QtWidgets.QWidget):
 		if isAtEnd:
 			self.output.setTextCursor(cursor)
 
+class ChannelTab(WindowTab):
+	def __init__(self, parent=None):
+		WindowTab.__init__(self, parent)
+
+		self.userList = QtWidgets.QListWidget(self)
+
+	def makeLayout(self):
+		sublayout = QtWidgets.QVBoxLayout()
+		sublayout.addWidget(self.output)
+		sublayout.addWidget(self.input)
+
+		layout = QtWidgets.QHBoxLayout(self)
+		layout.addLayout(sublayout)
+		layout.addWidget(self.userList)
+
+	def readJunk(self, pdata, pos):
+		userCount = u32.unpack_from(pdata, pos)[0]
+		pos += 4
+
+		users = []
+		for i in range(userCount):
+			#prefix = pdata[pos]
+			#pos += 1
+			nicklen = u32.unpack_from(pdata, pos)[0]
+			pos += 4
+			nick = pdata[pos:pos+nicklen].decode('utf-8', 'replace')
+			pos += nicklen
+			modes = u32.unpack_from(pdata, pos)[0]
+			pos += 4
+			users.append(nick)
+			#self.userList.addItem(chr(prefix)+nick)
+			self.userList.addItem(nick)
+
+		self.users = users
+
+		topiclen = u32.unpack_from(pdata, pos)[0]
+		pos += 4
+		self.topic = pdata[pos:pos+topiclen].decode('utf-8', 'replace')
+		pos += topiclen
+
+		return pos
+
+	def addUsers(self, pdata):
+		userCount = u32.unpack_from(pdata, 4)[0]
+		pos = 8
+
+		for i in range(userCount):
+			nicklen = u32.unpack_from(pdata, pos)[0]
+			pos += 4
+			nick = pdata[pos:pos+nicklen].decode('utf-8', 'replace')
+			pos += nicklen
+			modes = u32.unpack_from(pdata, pos)[0]
+			pos += 4
+			self.users.append(nick)
+			self.userList.addItem(nick)
+
+	def removeUsers(self, pdata):
+		userCount = u32.unpack_from(pdata, 4)[0]
+		pos = 8
+		if userCount == 0:
+			self.users = []
+			self.userList.clear()
+		else:
+			for i in range(userCount):
+				nicklen = u32.unpack_from(pdata, pos)[0]
+				pos += 4
+				nick = pdata[pos:pos+nicklen].decode('utf-8', 'replace')
+				pos += nicklen
+				print('Removing [%s]' % repr(nick))
+
+				self.users.remove(nick)
+				items = self.userList.findItems(nick, QtCore.Qt.MatchExactly)
+				self.userList.takeItem(self.userList.row(items[0]))
+	
+	def renameUser(self, pdata):
+		pos = 4
+		nicklen = u32.unpack_from(pdata, pos)[0]
+		pos += 4
+		fromnick = pdata[pos:pos+nicklen].decode('utf-8', 'replace')
+		pos += nicklen
+		nicklen = u32.unpack_from(pdata, pos)[0]
+		pos += 4
+		tonick = pdata[pos:pos+nicklen].decode('utf-8', 'replace')
+
+		try:
+			idx = self.users.index(fromnick)
+		except ValueError:
+			self.pushMessage('Crap, [%s] was not found in the users list!' % fromnick)
+			return
+
+		self.users[idx] = tonick
+
+		items = self.userList.findItems(fromnick, QtCore.Qt.MatchExactly)
+		items[0].setText(tonick)
+
+	def changeUserMode(self, pdata):
+		# boop
+		pass
+
 
 class MainWindow(QtWidgets.QMainWindow):
 	def __init__(self, parent=None):
@@ -177,6 +277,7 @@ class MainWindow(QtWidgets.QMainWindow):
 		self.setCentralWidget(self.tabs)
 
 		self.debugTab = WindowTab(self)
+		self.debugTab.makeLayout()
 		self.debugTab.enteredMessage.connect(self.handleDebug)
 		self.tabs.addTab(self.debugTab, 'Debug')
 
@@ -211,7 +312,13 @@ class MainWindow(QtWidgets.QMainWindow):
 						pos += msglen
 						msgs.append(msg)
 
-					tab = WindowTab(self)
+					if wtype == 1:
+						tab = WindowTab(self)
+					elif wtype == 2:
+						tab = ChannelTab(self)
+						pos = tab.readJunk(pdata, pos)
+
+					tab.makeLayout()
 					tab.winID = wid
 					tab.enteredMessage.connect(self.handleWindowInput)
 					self.tabs.addTab(tab, wtitle)
@@ -222,6 +329,23 @@ class MainWindow(QtWidgets.QMainWindow):
 				wndID, msglen = struct.unpack_from('<II', pdata, 0)
 				msg = pdata[8:8+msglen].decode('utf-8', 'replace')
 				self.tabLookup[wndID].pushMessage(msg)
+
+			elif ptype == 0x120:
+				# Add users to channel
+				wndID = u32.unpack_from(pdata, 0)[0]
+				self.tabLookup[wndID].addUsers(pdata)
+			elif ptype == 0x121:
+				# Remove users from channel
+				wndID = u32.unpack_from(pdata, 0)[0]
+				self.tabLookup[wndID].removeUsers(pdata)
+			elif ptype == 0x122:
+				# Rename user in channel
+				wndID = u32.unpack_from(pdata, 0)[0]
+				self.tabLookup[wndID].renameUser(pdata)
+			elif ptype == 0x123:
+				# Change user modes in channel
+				wndID = u32.unpack_from(pdata, 0)[0]
+				self.tabLookup[wndID].changeUserMode(pdata)
 
 			return True
 		else:

@@ -296,6 +296,12 @@ Window *NetCore::findWindow(int id) const {
 }
 
 
+void NetCore::sendToClients(Packet::Type type, const Buffer &data) {
+	for (int i = 0; i < clientCount; i++)
+		if (clients[i]->isAuthed())
+			clients[i]->sendPacket(type, data);
+}
+
 
 
 Client *Bouncer::constructClient() {

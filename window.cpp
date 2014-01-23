@@ -99,14 +99,62 @@ int Channel::getType() const {
 }
 
 void Channel::handleUserInput(const char *str) {
+	char msgBuf[16384];
+
 	if (str[0] == '/') {
+		if (strncmp(str, "/me ", 4) == 0) {
+			// The duplication of code between here and
+			// handlePrivmsg is ugly. TODO: fixme.
+			char prefix[2];
+			prefix[0] = getEffectivePrefixChar(server->currentNick);
+			prefix[1] = 0;
+
+			snprintf(msgBuf, sizeof(msgBuf),
+				"* %s%s %s",
+				prefix,
+				server->currentNick,
+				&str[4]);
+			pushMessage(msgBuf);
+
+			snprintf(msgBuf, sizeof(msgBuf),
+				"PRIVMSG %s :\x01" "ACTION %s\x01",
+				name.c_str(),
+				&str[4]);
+			server->sendLine(msgBuf);
+		}
 	} else {
-		server->sendLine(str);
+		// Aaaand this is also pretty ugly ><;;
+		// TODO: fixme.
+		char prefix[2];
+		prefix[0] = getEffectivePrefixChar(server->currentNick);
+		prefix[1] = 0;
+
+		snprintf(msgBuf, sizeof(msgBuf),
+			"<%s%s> %s",
+			prefix,
+			server->currentNick,
+			str);
+		pushMessage(msgBuf);
+
+		snprintf(msgBuf, sizeof(msgBuf),
+			"PRIVMSG %s :%s",
+			name.c_str(),
+			str);
+		server->sendLine(msgBuf);
 	}
 }
 
 void Channel::syncStateForClient(Buffer &output) {
 	Window::syncStateForClient(output);
+
+	output.writeU32(users.size());
+
+	for (auto &i : users) {
+		output.writeStr(i.first.c_str());
+		output.writeU32(i.second);
+	}
+
+	output.writeStr(topic.c_str());
 }
 
 
@@ -117,6 +165,12 @@ void Channel::handleNameReply(const char *str) {
 
 	char *strtok_var;
 	char *name = strtok_r(copy, " ", &strtok_var);
+
+	int nameCount = 0;
+
+	Buffer packet;
+	packet.writeU32(id);
+	packet.writeU32(0); // Dummy value..!
 
 	while (name) {
 		uint32_t modes = 0;
@@ -141,21 +195,49 @@ void Channel::handleNameReply(const char *str) {
 		// Got it!
 		users[name] = modes;
 
-		// TODO: push add command
+		nameCount++;
+		//packet.writeU8(getEffectivePrefixChar(name));
+		packet.writeStr(name);
+		packet.writeU32(modes);
 
 		// Get the next name
 		name = strtok_r(NULL, " ", &strtok_var);
+	}
+
+	if (nameCount > 0) {
+		uint32_t nameCountU32 = nameCount;
+		memcpy(&packet.data()[4], &nameCountU32, sizeof(uint32_t));
+
+		server->bouncer->sendToClients(
+			Packet::B2C_CHANNEL_USER_ADD, packet);
 	}
 }
 
 void Channel::handleJoin(const UserRef &user) {
 	if (user.isSelf) {
+		Buffer packet;
+		packet.writeU32(id);
+		packet.writeU32(0);
+
+		server->bouncer->sendToClients(
+			Packet::B2C_CHANNEL_USER_REMOVE, packet);
+
+
 		users.clear();
+
 		inChannel = true;
 		pushMessage("You have joined the channel!");
 	} else {
+		Buffer packet;
+		packet.writeU32(id);
+		packet.writeU32(1);
+		packet.writeStr(user.nick.c_str());
+		packet.writeU32(0);
+
+		server->bouncer->sendToClients(
+			Packet::B2C_CHANNEL_USER_ADD, packet);
+
 		users[user.nick] = 0;
-		// TODO: push add command
 
 		char buf[1024];
 		snprintf(buf, 1024,
@@ -172,7 +254,14 @@ void Channel::handlePart(const UserRef &user, const char *message) {
 	auto i = users.find(user.nick);
 	if (i != users.end()) {
 		users.erase(i);
-		// TODO: push remove command
+
+		Buffer packet;
+		packet.writeU32(id);
+		packet.writeU32(1);
+		packet.writeStr(user.nick.c_str());
+
+		server->bouncer->sendToClients(
+			Packet::B2C_CHANNEL_USER_REMOVE, packet);
 	}
 
 	char buf[1024];
@@ -205,8 +294,14 @@ void Channel::handleQuit(const UserRef &user, const char *message) {
 		return;
 
 	users.erase(i);
-	// TODO: push remove command
-	pushMessage("Removed from users");
+
+	Buffer packet;
+	packet.writeU32(id);
+	packet.writeU32(1);
+	packet.writeStr(user.nick.c_str());
+
+	server->bouncer->sendToClients(
+		Packet::B2C_CHANNEL_USER_REMOVE, packet);
 
 	char buf[1024];
 
@@ -227,7 +322,14 @@ void Channel::handleNick(const UserRef &user, const char *newNick) {
 
 	users[newNick] = i->second;
 	users.erase(i);
-	// TODO: push rename command
+
+	Buffer packet;
+	packet.writeU32(id);
+	packet.writeStr(user.nick.c_str());
+	packet.writeStr(newNick);
+
+	server->bouncer->sendToClients(
+		Packet::B2C_CHANNEL_USER_RENAME, packet);
 
 	char buf[1024];
 	snprintf(buf, 1024,
