@@ -356,3 +356,11 @@ char Channel::getEffectivePrefixChar(const char *nick) const {
 
 	return 0;
 }
+
+
+void Channel::disconnected() {
+	if (inChannel) {
+		inChannel = false;
+		pushMessage("You have been disconnected.");
+	}
+}

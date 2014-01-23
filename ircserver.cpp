@@ -73,6 +73,9 @@ void IRCServer::connectedEvent() {
 void IRCServer::disconnectedEvent() {
 	printf("[IRCServer:%p] disconnectedEvent\n", this);
 	status.pushMessage("Disconnected.");
+
+	for (auto &i : channels)
+		i.second->disconnected();
 }
 void IRCServer::lineReceivedEvent(char *line, int size) {
 	printf("[%d] { %s }\n", size, line);

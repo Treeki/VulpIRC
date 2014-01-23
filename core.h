@@ -98,6 +98,8 @@ public:
 	void handlePrivmsg(const UserRef &user, const char *str);
 
 	char getEffectivePrefixChar(const char *nick) const;
+
+	void disconnected();
 };
 
 
