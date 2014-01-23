@@ -89,8 +89,15 @@ public:
 	virtual void handleUserInput(const char *str);
 	virtual void syncStateForClient(Buffer &output);
 
+	void handleNameReply(const char *str);
 	void handleJoin(const UserRef &user);
+	void handlePart(const UserRef &user, const char *message);
+	void handleQuit(const UserRef &user, const char *message);
+	void handleNick(const UserRef &user, const char *newNick);
+	void handleMode(const UserRef &user, const char *str);
 	void handlePrivmsg(const UserRef &user, const char *str);
+
+	char getEffectivePrefixChar(const char *nick) const;
 };
 
 
@@ -272,6 +279,11 @@ public:
 	char currentNick[128];
 	char serverPrefix[32], serverPrefixMode[32];
 	std::string serverChannelModes[4];
+
+	uint32_t getUserFlag(char search, const char *array) const;
+	uint32_t getUserFlagByPrefix(char prefix) const;
+	uint32_t getUserFlagByMode(char mode) const;
+	int getChannelModeType(char mode) const;
 
 	IRCServer(Bouncer *_bouncer);
 	~IRCServer();

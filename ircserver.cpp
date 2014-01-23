@@ -186,31 +186,95 @@ void IRCServer::lineReceivedEvent(char *line, int size) {
 
 	if (strcmp(cmdBuf, "PING") == 0) {
 		char out[512];
-		snprintf(out, 512, "PONG %s", allParams);
+		snprintf(out, 512, "PONG :%s", allParams);
 		sendLine(out);
+		return;
 
 	} else if (strcmp(cmdBuf, "JOIN") == 0) {
 		Channel *c = findChannel(targetBuf, true);
-		if (c)
+		if (c) {
 			c->handleJoin(user);
+			return;
+		}
+
+	} else if (strcmp(cmdBuf, "PART") == 0) {
+		Channel *c = findChannel(targetBuf, false);
+		if (c) {
+			c->handlePart(user, paramsAfterFirst);;
+			return;
+		}
+
+	} else if (strcmp(cmdBuf, "QUIT") == 0) {
+		for (auto &i : channels)
+			i.second->handleQuit(user, allParams);
+		return;
+
+	} else if (strcmp(cmdBuf, "NICK") == 0) {
+		if (user.isSelf) {
+			strncpy(currentNick, allParams, sizeof(currentNick));
+			currentNick[sizeof(currentNick) - 1] = 0;
+
+			char buf[1024];
+			snprintf(buf, 1024, "You are now known as %s", currentNick);
+			status.pushMessage(buf);
+		}
+
+		for (auto &i : channels)
+			i.second->handleNick(user, allParams);
+		return;
+
+	} else if (strcmp(cmdBuf, "MODE") == 0) {
+		Channel *c = findChannel(targetBuf, false);
+		if (c) {
+			c->handleMode(user, paramsAfterFirst);
+			return;
+		}
 
 	} else if (strcmp(cmdBuf, "PRIVMSG") == 0) {
 		Channel *c = findChannel(targetBuf, true);
-		if (c)
+		if (c) {
 			c->handlePrivmsg(user, paramsAfterFirst);
+			return;
+		}
 
 	} else if (strcmp(cmdBuf, "001") == 0) {
 		status.pushMessage("[debug: currentNick change detected]");
 
 		strncpy(currentNick, targetBuf, sizeof(currentNick));
 		currentNick[sizeof(currentNick) - 1] = 0;
+		return;
 
 	} else if (strcmp(cmdBuf, "005") == 0) {
 		processISupport(paramsAfterFirst);
+		return;
 
-	} else {
-		status.pushMessage("!! Unhandled !!");
+	} else if (strcmp(cmdBuf, "353") == 0) {
+		// RPL_NAMEREPLY:
+		// Target is always us
+		// Params: Channel privacy flag, channel, user list
+
+		char *space1 = strchr(paramsAfterFirst, ' ');
+		if (space1) {
+			char *space2 = strchr(space1 + 1, ' ');
+			if (space2) {
+				char *chanName = space1 + 1;
+				*space2 = 0;
+
+				char *userNames = space2 + 1;
+				if (*userNames == ':')
+					++userNames;
+
+				Channel *c = findChannel(chanName, false);
+
+				if (c) {
+					c->handleNameReply(userNames);
+					return;
+				}
+			}
+		}
 	}
+
+	status.pushMessage("!! Unhandled !!");
 }
 
 
@@ -288,4 +352,39 @@ void IRCServer::processISupport(const char *line) {
 			}
 		}
 	}
+}
+
+
+uint32_t IRCServer::getUserFlag(char search, const char *array) const {
+	uint32_t flag = 1;
+
+	// Is this character a valid prefix?
+	while (*array != 0) {
+		if (*array == search)
+			return flag;
+
+		flag <<= 1;
+		++array;
+	}
+}
+
+uint32_t IRCServer::getUserFlagByPrefix(char prefix) const {
+	return getUserFlag(prefix, serverPrefix);
+} 
+uint32_t IRCServer::getUserFlagByMode(char mode) const {
+	return getUserFlag(mode, serverPrefixMode);
+}
+
+int IRCServer::getChannelModeType(char mode) const {
+	for (int i = 0; i < 4; i++) {
+		const char *modes = serverChannelModes[i].c_str();
+
+		while (*modes != 0) {
+			if (*modes == mode)
+				return i + 1;
+			++modes;
+		}
+	}
+
+	return 0;
 }
