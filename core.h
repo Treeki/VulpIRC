@@ -1,6 +1,9 @@
 #ifndef CORE_H
 #define CORE_H 
 
+// Set in build.sh
+//#define USE_GNUTLS
+
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -13,12 +16,15 @@
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <netinet/in.h>
-#include <gnutls/gnutls.h>
 #include <list>
 #include <map>
 #include <string>
 
 #include "buffer.h"
+
+#ifdef USE_GNUTLS
+#include <gnutls/gnutls.h>
+#endif
 
 #define CLIENT_LIMIT 100
 #define SERVER_LIMIT 20
@@ -125,8 +131,10 @@ protected:
 	ConnState state;
 
 	int sock;
+#ifdef USE_GNUTLS
 	gnutls_session_t tls;
 	bool tlsActive;
+#endif
 
 public:
 	SocketRWCommon(NetCore *_netCore);
@@ -135,11 +143,13 @@ public:
 	virtual void close();
 
 private:
+#ifdef USE_GNUTLS
 	bool tryTLSHandshake();
+	bool hasTlsPendingData() const;
+#endif
 
 	void readAction();
 	void writeAction();
-	bool hasTlsPendingData() const;
 
 	virtual void processReadBuffer() = 0;
 };
@@ -356,6 +366,8 @@ private:
 
 
 // This is ugly as crap, TODO FIXME etc etc
+#ifdef USE_GNUTLS
 extern gnutls_certificate_credentials_t g_serverCreds, g_clientCreds;
+#endif
 
 #endif /* CORE_H */

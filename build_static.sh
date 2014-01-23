@@ -3,7 +3,7 @@ mkdir -p binary
 
 NETCODE="socketcommon.cpp client.cpp mobileclient.cpp server.cpp ircserver.cpp netcore.cpp"
 SOURCES="$NETCODE main.cpp window.cpp dns.cpp"
-FLAGS="-std=c++11 -DUSE_GNUTLS -lgnutls -pthread -g"
+FLAGS="-static -static-libgcc -static-libstdc++ -std=c++11 -pthread"
 
-g++ -o binary/nb4 $FLAGS $SOURCES
+g++ -o binary/nb4_static $FLAGS $SOURCES
 

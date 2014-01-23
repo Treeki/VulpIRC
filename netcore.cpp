@@ -93,8 +93,10 @@ int NetCore::execute() {
 		time_t now = time(NULL);
 
 		for (int i = 0; i < clientCount; i++) {
+#ifdef USE_GNUTLS
 			if (clients[i]->state == Client::CS_TLS_HANDSHAKE)
 				clients[i]->tryTLSHandshake();
+#endif
 
 			if (clients[i]->sock != -1) {
 				if (clients[i]->sock > maxFD)
@@ -134,10 +136,12 @@ int NetCore::execute() {
 		for (int i = 0; i < serverCount; i++) {
 			if (servers[i]->state == Server::CS_WAITING_DNS)
 				servers[i]->tryConnectPhase();
+#ifdef USE_GNUTLS
 			else if (servers[i]->state == Server::CS_TLS_HANDSHAKE) {
 				if (servers[i]->tryTLSHandshake())
 					servers[i]->connectedEvent();
 			}
+#endif
 
 			if (servers[i]->sock != -1) {
 				if (servers[i]->sock > maxFD)
@@ -163,8 +167,15 @@ int NetCore::execute() {
 			if (clients[i]->sock != -1) {
 				if (FD_ISSET(clients[i]->sock, &writeSet))
 					clients[i]->writeAction();
-				if (FD_ISSET(clients[i]->sock, &readSet) || clients[i]->hasTlsPendingData())
+
+				if (FD_ISSET(clients[i]->sock, &readSet)
+#ifdef USE_GNUTLS
+					|| clients[i]->hasTlsPendingData()
+#endif
+					)
+				{
 					clients[i]->readAction();
+				}
 			}
 		}
 
@@ -203,8 +214,14 @@ int NetCore::execute() {
 				}
 
 
-				if (FD_ISSET(servers[i]->sock, &readSet) || servers[i]->hasTlsPendingData())
+				if (FD_ISSET(servers[i]->sock, &readSet)
+#ifdef USE_GNUTLS
+					|| servers[i]->hasTlsPendingData()
+#endif
+					)
+				{
 					servers[i]->readAction();
+				}
 			}
 		}
 

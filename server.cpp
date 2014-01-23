@@ -115,6 +115,7 @@ void Server::connectionSuccessful() {
 	outputBuf.clear();
 
 	// Do we need to do any TLS junk?
+#ifdef USE_GNUTLS
 	if (useTls) {
 		state = CS_TLS_HANDSHAKE;
 
@@ -135,7 +136,9 @@ void Server::connectionSuccessful() {
 		gnutls_transport_set_int(tls, sock);
 
 		tlsActive = true;
-	} else {
+	} else
+#endif
+	{
 		connectedEvent();
 	}
 }

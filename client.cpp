@@ -39,6 +39,7 @@ void Client::startService(int _sock, bool withTls) {
 		return;
 	}
 
+#ifdef USE_GNUTLS
 	if (withTls) {
 		int initRet = gnutls_init(&tls, GNUTLS_SERVER);
 		if (initRet != GNUTLS_E_SUCCESS) {
@@ -75,7 +76,9 @@ void Client::startService(int _sock, bool withTls) {
 		state = CS_TLS_HANDSHAKE;
 
 		printf("[fd=%d] preparing for TLS handshake\n", sock);
-	} else {
+	} else
+#endif
+	{
 		state = CS_CONNECTED;
 	}
 }
@@ -260,14 +263,19 @@ void Client::resumeSession(Client *other, int lastReceivedByClient) {
 	outputBuf.append(other->outputBuf.data(), other->outputBuf.size());
 
 	sock = other->sock;
+	state = other->state;
+#ifdef USE_GNUTLS
 	tls = other->tls;
 	tlsActive = other->tlsActive;
-	state = other->state;
+#endif
 
 	other->sock = -1;
+	other->state = CS_DISCONNECTED;
+#ifdef USE_GNUTLS
 	other->tls = 0;
 	other->tlsActive = false;
-	other->state = CS_DISCONNECTED;
+#endif
+
 	other->close();
 
 	// Now send them everything we've got!

@@ -1,9 +1,9 @@
 #include "core.h"
 #include "dns.h"
 
+#ifdef USE_GNUTLS
 static gnutls_dh_params_t dh_params;
 gnutls_certificate_credentials_t g_serverCreds, g_clientCreds;
-
 
 bool initTLS() {
 	int ret;
@@ -39,10 +39,13 @@ bool initTLS() {
 
 	return true;
 }
+#endif
 
 int main(int argc, char **argv) {
+#ifdef USE_GNUTLS
 	if (!initTLS())
 		return EXIT_FAILURE;
+#endif
 
 	DNS::start();
 

@@ -19,12 +19,15 @@ SocketRWCommon::SocketRWCommon(NetCore *_netCore) {
 	netCore = _netCore;
 	sock = -1;
 	state = CS_DISCONNECTED;
+#ifdef USE_GNUTLS
 	tlsActive = false;
+#endif
 }
 SocketRWCommon::~SocketRWCommon() {
 	close();
 }
 
+#ifdef USE_GNUTLS
 bool SocketRWCommon::hasTlsPendingData() const {
 	if (tlsActive)
 		return (gnutls_record_check_pending(tls) > 0);
@@ -54,11 +57,14 @@ bool SocketRWCommon::tryTLSHandshake() {
 
 	return false;
 }
+#endif
 
 void SocketRWCommon::close() {
 	if (sock != -1) {
+#ifdef USE_GNUTLS
 		if (tlsActive)
 			gnutls_bye(tls, GNUTLS_SHUT_RDWR);
+#endif
 		shutdown(sock, SHUT_RDWR);
 		::close(sock);
 	}
@@ -68,10 +74,12 @@ void SocketRWCommon::close() {
 	outputBuf.clear();
 	state = CS_DISCONNECTED;
 
+#ifdef USE_GNUTLS
 	if (tlsActive) {
 		gnutls_deinit(tls);
 		tlsActive = false;
 	}
+#endif
 }
 
 void SocketRWCommon::readAction() {
@@ -83,12 +91,15 @@ void SocketRWCommon::readAction() {
 		inputBuf.setCapacity(requiredSize);
 
 	ssize_t amount;
+
+#ifdef USE_GNUTLS
 	if (tlsActive) {
 		amount = gnutls_record_recv(tls,
 				&inputBuf.data()[bufSize],
 				0x200);
-	} else {
-
+	} else
+#endif
+	{
 		amount = recv(sock,
 				&inputBuf.data()[bufSize],
 				0x200,
@@ -108,12 +119,15 @@ void SocketRWCommon::readAction() {
 		close();
 
 	} else if (amount < 0) {
+#ifdef USE_GNUTLS
 		if (tlsActive) {
 			if (gnutls_error_is_fatal(amount)) {
 				printf("Error while reading [gnutls %d]!\n", amount);
 				close();
 			}
-		} else {
+		} else
+#endif
+		{
 			perror("Error while reading!");
 			close();
 		}
@@ -123,11 +137,15 @@ void SocketRWCommon::readAction() {
 void SocketRWCommon::writeAction() {
 	// What can we get rid of...?
 	ssize_t amount;
+
+#ifdef USE_GNUTLS
 	if (tlsActive) {
 		amount = gnutls_record_send(tls,
 				outputBuf.data(),
 				outputBuf.size());
-	} else {
+	} else
+#endif
+	{
 		amount = send(sock,
 				outputBuf.data(),
 				outputBuf.size(),
@@ -140,12 +158,15 @@ void SocketRWCommon::writeAction() {
 	} else if (amount == 0)
 		printf("Sent 0!\n");
 	else if (amount < 0) {
+#ifdef USE_GNUTLS
 		if (tlsActive) {
 			if (gnutls_error_is_fatal(amount)) {
 				printf("Error while sending [gnutls %d]!\n", amount);
 				close();
 			}
-		} else {
+		} else
+#endif
+		{
 			perror("Error while sending!");
 			close();
 		}
