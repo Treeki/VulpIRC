@@ -359,14 +359,14 @@ void IRCServer::processISupport(const char *line) {
 
 
 uint32_t IRCServer::getUserFlag(char search, const char *array) const {
-	uint32_t flag = 1;
+	uint32_t flag = 0x80000000;
 
 	// Is this character a valid prefix?
 	while (*array != 0) {
 		if (*array == search)
 			return flag;
 
-		flag <<= 1;
+		flag >>= 1;
 		++array;
 	}
 }
@@ -393,7 +393,7 @@ int IRCServer::getChannelModeType(char mode) const {
 }
 
 char IRCServer::getEffectivePrefixChar(uint32_t modes) const {
-	uint32_t flag = 1;
+	uint32_t flag = 0x80000000;
 	const char *prefixes = serverPrefix;
 
 	while (*prefixes != 0) {
@@ -401,7 +401,7 @@ char IRCServer::getEffectivePrefixChar(uint32_t modes) const {
 			return *prefixes;
 
 		++prefixes;
-		flag <<= 1;
+		flag >>= 1;
 	}
 
 	return 0;
