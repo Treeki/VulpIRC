@@ -162,10 +162,25 @@ class WindowTab(QtWidgets.QWidget):
 			self.output.setTextCursor(cursor)
 
 class ChannelTab(WindowTab):
+	class UserEntry:
+		def __init__(self, nick, prefix, modes, listwidget):
+			self.nick = nick
+			self.prefix = prefix
+			self.modes = modes
+			self.item = QtWidgets.QListWidgetItem('', listwidget)
+			self.syncItemText()
+
+		def syncItemText(self):
+			if self.prefix == 0:
+				self.item.setText(self.nick)
+			else:
+				self.item.setText(chr(self.prefix) + self.nick)
+
 	def __init__(self, parent=None):
 		WindowTab.__init__(self, parent)
 
 		self.userList = QtWidgets.QListWidget(self)
+		self.users = {}
 
 	def makeLayout(self):
 		sublayout = QtWidgets.QVBoxLayout()
@@ -180,7 +195,7 @@ class ChannelTab(WindowTab):
 		userCount = u32.unpack_from(pdata, pos)[0]
 		pos += 4
 
-		users = []
+		users = {}
 		for i in range(userCount):
 			#prefix = pdata[pos]
 			#pos += 1
@@ -190,9 +205,10 @@ class ChannelTab(WindowTab):
 			pos += nicklen
 			modes = u32.unpack_from(pdata, pos)[0]
 			pos += 4
-			users.append(nick)
-			#self.userList.addItem(chr(prefix)+nick)
-			self.userList.addItem(nick)
+			prefix = pdata[pos]
+			pos += 1
+
+			users[nick] = self.UserEntry(nick, prefix, modes, self.userList)
 
 		self.users = users
 
@@ -214,14 +230,16 @@ class ChannelTab(WindowTab):
 			pos += nicklen
 			modes = u32.unpack_from(pdata, pos)[0]
 			pos += 4
-			self.users.append(nick)
-			self.userList.addItem(nick)
+			prefix = pdata[pos]
+			pos += 1
+
+			self.users[nick] = self.UserEntry(nick, prefix, modes, self.userList)
 
 	def removeUsers(self, pdata):
 		userCount = u32.unpack_from(pdata, 4)[0]
 		pos = 8
 		if userCount == 0:
-			self.users = []
+			self.users = {}
 			self.userList.clear()
 		else:
 			for i in range(userCount):
@@ -231,9 +249,10 @@ class ChannelTab(WindowTab):
 				pos += nicklen
 				print('Removing [%s]' % repr(nick))
 
-				self.users.remove(nick)
-				items = self.userList.findItems(nick, QtCore.Qt.MatchExactly)
-				self.userList.takeItem(self.userList.row(items[0]))
+				uo = self.users[nick]
+				self.userList.takeItem(self.userList.row(uo.item))
+
+				del self.users[nick]
 	
 	def renameUser(self, pdata):
 		pos = 4
@@ -245,20 +264,25 @@ class ChannelTab(WindowTab):
 		pos += 4
 		tonick = pdata[pos:pos+nicklen].decode('utf-8', 'replace')
 
-		try:
-			idx = self.users.index(fromnick)
-		except ValueError:
-			self.pushMessage('Crap, [%s] was not found in the users list!' % fromnick)
-			return
+		uo = self.users[fromnick]
+		del self.users[fromnick]
+		self.users[tonick] = uo
 
-		self.users[idx] = tonick
-
-		items = self.userList.findItems(fromnick, QtCore.Qt.MatchExactly)
-		items[0].setText(tonick)
+		uo.nick = tonick
+		uo.syncItemText()
 
 	def changeUserMode(self, pdata):
-		# boop
-		pass
+		pos = 4
+		nicklen = u32.unpack_from(pdata, pos)[0]
+		pos += 4
+		nick = pdata[pos:pos+nicklen].decode('utf-8', 'replace')
+		pos += nicklen
+		modes, prefix = struct.unpack_from('<IB', pdata, pos)
+
+		uo = self.users[nick]
+		uo.modes = modes
+		uo.prefix = prefix
+		uo.syncItemText()
 
 
 class MainWindow(QtWidgets.QMainWindow):

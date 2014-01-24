@@ -152,6 +152,7 @@ void Channel::syncStateForClient(Buffer &output) {
 	for (auto &i : users) {
 		output.writeStr(i.first.c_str());
 		output.writeU32(i.second);
+		output.writeU8(server->getEffectivePrefixChar(i.second));
 	}
 
 	output.writeStr(topic.c_str());
@@ -196,9 +197,9 @@ void Channel::handleNameReply(const char *str) {
 		users[name] = modes;
 
 		nameCount++;
-		//packet.writeU8(getEffectivePrefixChar(name));
 		packet.writeStr(name);
 		packet.writeU32(modes);
+		packet.writeU8(server->getEffectivePrefixChar(modes));
 
 		// Get the next name
 		name = strtok_r(NULL, " ", &strtok_var);
@@ -233,6 +234,7 @@ void Channel::handleJoin(const UserRef &user) {
 		packet.writeU32(1);
 		packet.writeStr(user.nick.c_str());
 		packet.writeU32(0);
+		packet.writeU8(0);
 
 		server->bouncer->sendToClients(
 			Packet::B2C_CHANNEL_USER_ADD, packet);
@@ -372,13 +374,21 @@ void Channel::handleMode(const UserRef &user, const char *str) {
 				// Oops? Spit out an error...
 				oops = true;
 			} else {
-				// TODO: push mode change to clients
 				uint32_t flags = i->second;
 				if (addFlag)
 					flags |= flag;
 				else
 					flags &= ~flag;
 				users[target] = flags;
+
+				Buffer packet;
+				packet.writeU32(id);
+				packet.writeStr(target);
+				packet.writeU32(flags);
+				packet.writeU8(server->getEffectivePrefixChar(flags));
+
+				server->bouncer->sendToClients(
+					Packet::B2C_CHANNEL_USER_MODES, packet);
 			}
 
 			char buf[1024];
@@ -442,21 +452,7 @@ char Channel::getEffectivePrefixChar(const char *nick) const {
 	if (i == users.end())
 		return 0;
 
-	// Maybe this bit would work best as an IRCServer method?
-
-	uint32_t modes = i->second;
-	uint32_t flag = 1;
-	char *prefixes = server->serverPrefix;
-
-	while (*prefixes != 0) {
-		if (modes & flag)
-			return *prefixes;
-
-		++prefixes;
-		flag <<= 1;
-	}
-
-	return 0;
+	return server->getEffectivePrefixChar(i->second);
 }
 
 

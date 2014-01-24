@@ -391,3 +391,18 @@ int IRCServer::getChannelModeType(char mode) const {
 
 	return 0;
 }
+
+char IRCServer::getEffectivePrefixChar(uint32_t modes) const {
+	uint32_t flag = 1;
+	const char *prefixes = serverPrefix;
+
+	while (*prefixes != 0) {
+		if (modes & flag)
+			return *prefixes;
+
+		++prefixes;
+		flag <<= 1;
+	}
+
+	return 0;
+}

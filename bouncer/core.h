@@ -302,6 +302,7 @@ public:
 	uint32_t getUserFlagByPrefix(char prefix) const;
 	uint32_t getUserFlagByMode(char mode) const;
 	int getChannelModeType(char mode) const;
+	char getEffectivePrefixChar(uint32_t modes) const;
 
 	IRCServer(Bouncer *_bouncer);
 	~IRCServer();
