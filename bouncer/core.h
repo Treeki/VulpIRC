@@ -102,6 +102,8 @@ public:
 	void handleNick(const UserRef &user, const char *newNick);
 	void handleMode(const UserRef &user, const char *str);
 	void handlePrivmsg(const UserRef &user, const char *str);
+	void handleTopic(const UserRef &user, const char *message);
+	void handleTopicInfo(const char *user, int timestamp);
 
 	char getEffectivePrefixChar(const char *nick) const;
 
@@ -173,6 +175,7 @@ struct Packet {
 		B2C_CHANNEL_USER_REMOVE = 0x121,
 		B2C_CHANNEL_USER_RENAME = 0x122,
 		B2C_CHANNEL_USER_MODES = 0x123,
+		B2C_CHANNEL_TOPIC = 0x124,
 
 		C2B_OOB_LOGIN = 0x8001,
 

@@ -233,6 +233,13 @@ void IRCServer::lineReceivedEvent(char *line, int size) {
 			return;
 		}
 
+	} else if (strcmp(cmdBuf, "TOPIC") == 0) {
+		Channel *c = findChannel(targetBuf, false);
+		if (c) {
+			c->handleTopic(user, paramsAfterFirst);
+			return;
+		}
+
 	} else if (strcmp(cmdBuf, "PRIVMSG") == 0) {
 		Channel *c = findChannel(targetBuf, true);
 		if (c) {
@@ -250,6 +257,56 @@ void IRCServer::lineReceivedEvent(char *line, int size) {
 	} else if (strcmp(cmdBuf, "005") == 0) {
 		processISupport(paramsAfterFirst);
 		return;
+
+	} else if (strcmp(cmdBuf, "331") == 0) {
+		// RPL_NOTOPIC:
+		// Params: Channel name, *maybe* text we can ignore
+
+		char *space = strchr(paramsAfterFirst, ' ');
+		if (space)
+			*space = 0;
+
+		Channel *c = findChannel(paramsAfterFirst, false);
+		if (c) {
+			c->handleTopic(UserRef(), "");
+			return;
+		}
+
+	} else if (strcmp(cmdBuf, "332") == 0) {
+		// RPL_TOPIC:
+		// Params: Channel name, text
+
+		char *space = strchr(paramsAfterFirst, ' ');
+		if (space) {
+			*space = 0;
+
+			char *topic = space + 1;
+			if (*topic == ':')
+				++topic;
+
+			Channel *c = findChannel(paramsAfterFirst, false);
+			if (c) {
+				c->handleTopic(UserRef(), topic);
+				return;
+			}
+		}
+
+	} else if (strcmp(cmdBuf, "333") == 0) {
+		// Topic set
+
+		char *strtok_var;
+		char *chanName = strtok_r(paramsAfterFirst, " ", &strtok_var);
+		char *setBy = strtok_r(NULL, " ", &strtok_var);
+		char *when = strtok_r(NULL, " ", &strtok_var);
+
+		if (chanName && setBy && when) {
+			Channel *c = findChannel(chanName, false);
+
+			if (c) {
+				c->handleTopicInfo(setBy, atoi(when));
+				return;
+			}
+		}
 
 	} else if (strcmp(cmdBuf, "353") == 0) {
 		// RPL_NAMEREPLY:

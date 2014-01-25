@@ -61,7 +61,7 @@ def reader():
 
 		pos = 0
 		bufsize = len(readbuf)
-		print('[bufsize: %d]' % bufsize)
+		#print('[bufsize: %d]' % bufsize)
 		while True:
 			if (pos + 8) > bufsize:
 				break
@@ -107,7 +107,7 @@ def reader():
 
 			pos += size
 
-		print('[processed %d bytes]' % pos)
+		#print('[processed %d bytes]' % pos)
 		readbuf = readbuf[pos:]
 
 def writePacket(type, data, allowUnauthed=False):
@@ -179,11 +179,14 @@ class ChannelTab(WindowTab):
 	def __init__(self, parent=None):
 		WindowTab.__init__(self, parent)
 
+		self.topicLabel = QtWidgets.QLabel(self)
+		self.topicLabel.setWordWrap(True)
 		self.userList = QtWidgets.QListWidget(self)
 		self.users = {}
 
 	def makeLayout(self):
 		sublayout = QtWidgets.QVBoxLayout()
+		sublayout.addWidget(self.topicLabel)
 		sublayout.addWidget(self.output)
 		sublayout.addWidget(self.input)
 
@@ -216,6 +219,8 @@ class ChannelTab(WindowTab):
 		pos += 4
 		self.topic = pdata[pos:pos+topiclen].decode('utf-8', 'replace')
 		pos += topiclen
+
+		self.topicLabel.setText(self.topic)
 
 		return pos
 
@@ -283,6 +288,11 @@ class ChannelTab(WindowTab):
 		uo.modes = modes
 		uo.prefix = prefix
 		uo.syncItemText()
+
+	def changeTopic(self, pdata):
+		tlen = u32.unpack_from(pdata, 4)[0]
+		self.topic = pdata[8:8+tlen].decode('utf-8', 'replace')
+		self.topicLabel.setText(self.topic)
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -370,6 +380,10 @@ class MainWindow(QtWidgets.QMainWindow):
 				# Change user modes in channel
 				wndID = u32.unpack_from(pdata, 0)[0]
 				self.tabLookup[wndID].changeUserMode(pdata)
+			elif ptype == 0x124:
+				# Change topic in channel
+				wndID = u32.unpack_from(pdata, 0)[0]
+				self.tabLookup[wndID].changeTopic(pdata)
 
 			return True
 		else:

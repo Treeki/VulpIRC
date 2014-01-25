@@ -447,6 +447,43 @@ void Channel::handlePrivmsg(const UserRef &user, const char *str) {
 }
 
 
+
+
+void Channel::handleTopic(const UserRef &user, const char *message) {
+	char buf[1024];
+
+	if (user.isValid) {
+		snprintf(buf, sizeof(buf),
+			"%s changed the topic to: %s",
+			user.nick.c_str(),
+			message);
+	} else {
+		snprintf(buf, sizeof(buf),
+			"Topic: %s",
+			message);
+	}
+	pushMessage(buf);
+
+	topic = message;
+
+	Buffer packet;
+	packet.writeU32(id);
+	packet.writeStr(message);
+	server->bouncer->sendToClients(
+		Packet::B2C_CHANNEL_TOPIC, packet);
+}
+
+void Channel::handleTopicInfo(const char *user, int timestamp) {
+	char buf[1024];
+	snprintf(buf, sizeof(buf),
+		"Topic set by %s at %d",
+		user,
+		timestamp);
+	pushMessage(buf);
+}
+
+
+
 char Channel::getEffectivePrefixChar(const char *nick) const {
 	auto i = users.find(nick);
 	if (i == users.end())
