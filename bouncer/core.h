@@ -111,6 +111,24 @@ public:
 	void disconnected();
 };
 
+class Query : public Window {
+public:
+	Query(IRCServer *_server, const char *_partner);
+
+	IRCServer *server;
+	std::string partner;
+
+	virtual const char *getTitle() const;
+	virtual int getType() const;
+	virtual void handleUserInput(const char *str);
+
+	void handleQuit(const char *message);
+	void handlePrivmsg(const char *str);
+
+	void showNickChange(const UserRef &user, const char *newNick);
+	void renamePartner(const char *_partner);
+};
+
 
 
 class SocketRWCommon {
@@ -295,6 +313,7 @@ public:
 
 	StatusWindow status;
 	std::map<std::string, Channel *> channels;
+	std::map<std::string, Query *> queries;
 
 	IRCNetworkConfig config;
 
@@ -326,6 +345,7 @@ private:
 	void processISupport(const char *str);
 
 	Channel *findChannel(const char *name, bool createIfNeeded);
+	Query *findQuery(const char *name, bool createIfNeeded);
 };
 
 

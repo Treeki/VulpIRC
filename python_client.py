@@ -346,7 +346,7 @@ class MainWindow(QtWidgets.QMainWindow):
 						pos += msglen
 						msgs.append(msg)
 
-					if wtype == 1:
+					if wtype == 1 or wtype == 3:
 						tab = WindowTab(self)
 					elif wtype == 2:
 						tab = ChannelTab(self)
@@ -363,6 +363,13 @@ class MainWindow(QtWidgets.QMainWindow):
 				wndID, msglen = struct.unpack_from('<II', pdata, 0)
 				msg = pdata[8:8+msglen].decode('utf-8', 'replace')
 				self.tabLookup[wndID].pushMessage(msg)
+			elif ptype == 0x103:
+				# WINDOW RENAME
+				wndID, msglen = struct.unpack_from('<II', pdata, 0)
+				title = pdata[8:8+msglen].decode('utf-8', 'replace')
+
+				tabObj = self.tabLookup[wndID]
+				self.tabs.setTabText(self.tabs.indexOf(tabObj), title)
 
 			elif ptype == 0x120:
 				# Add users to channel

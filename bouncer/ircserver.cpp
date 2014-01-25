@@ -14,6 +14,11 @@ IRCServer::~IRCServer() {
 		bouncer->deregisterWindow(i.second);
 		delete i.second;
 	}
+
+	for (auto &i : queries) {
+		bouncer->deregisterWindow(i.second);
+		delete i.second;
+	}
 }
 
 void IRCServer::attachedToCore() {
@@ -43,6 +48,22 @@ Channel *IRCServer::findChannel(const char *name, bool createIfNeeded) {
 			Channel *c = new Channel(this, name);
 			channels[name] = c;
 			return c;
+		} else {
+			return 0;
+		}
+	} else {
+		return check->second;
+	}
+}
+Query *IRCServer::findQuery(const char *name, bool createIfNeeded) {
+	std::map<std::string, Query *>::iterator
+		check = queries.find(name);
+
+	if (check == queries.end()) {
+		if (createIfNeeded) {
+			Query *q = new Query(this, name);
+			queries[name] = q;
+			return q;
 		} else {
 			return 0;
 		}
@@ -210,6 +231,9 @@ void IRCServer::lineReceivedEvent(char *line, int size) {
 	} else if (strcmp(cmdBuf, "QUIT") == 0) {
 		for (auto &i : channels)
 			i.second->handleQuit(user, allParams);
+
+		if (Query *q = findQuery(user.nick.c_str(), false))
+			q->handleQuit(allParams);
 		return;
 
 	} else if (strcmp(cmdBuf, "KICK") == 0) {
@@ -238,10 +262,37 @@ void IRCServer::lineReceivedEvent(char *line, int size) {
 			char buf[1024];
 			snprintf(buf, 1024, "You are now known as %s", currentNick);
 			status.pushMessage(buf);
+
+			for (auto &it : queries)
+				it.second->showNickChange(user, allParams);
+		}
+
+		if (Query *q = findQuery(user.nick.c_str(), false)) {
+			if (!user.isSelf)
+				q->showNickChange(user, allParams);
+
+			// Should we *rename* the query window, or not?
+			Query *check = findQuery(allParams, false);
+			if (check) {
+				// If we already have one with the destination
+				// nick, we shouldn't replace it..
+				// ...but we should still show a notification there.
+				if (!user.isSelf)
+					check->showNickChange(user, allParams);
+			} else {
+				// We didn't have one, so it's safe to move!
+				auto iter = queries.find(user.nick);
+				queries.erase(iter);
+
+				queries[allParams] = q;
+
+				q->renamePartner(allParams);
+			}
 		}
 
 		for (auto &i : channels)
 			i.second->handleNick(user, allParams);
+
 		return;
 
 	} else if (strcmp(cmdBuf, "MODE") == 0) {
@@ -259,10 +310,18 @@ void IRCServer::lineReceivedEvent(char *line, int size) {
 		}
 
 	} else if (strcmp(cmdBuf, "PRIVMSG") == 0) {
-		Channel *c = findChannel(targetBuf, true);
-		if (c) {
-			c->handlePrivmsg(user, paramsAfterFirst);
-			return;
+		if (strcmp(targetBuf, currentNick) == 0) {
+			Query *q = findQuery(user.nick.c_str(), true);
+			if (q) {
+				q->handlePrivmsg(paramsAfterFirst);
+				return;
+			}
+		} else {
+			Channel *c = findChannel(targetBuf, true);
+			if (c) {
+				c->handlePrivmsg(user, paramsAfterFirst);
+				return;
+			}
 		}
 
 	} else if (strcmp(cmdBuf, "001") == 0) {
