@@ -99,6 +99,7 @@ public:
 	void handleJoin(const UserRef &user);
 	void handlePart(const UserRef &user, const char *message);
 	void handleQuit(const UserRef &user, const char *message);
+	void handleKick(const UserRef &user, const char *target, const char *message);
 	void handleNick(const UserRef &user, const char *newNick);
 	void handleMode(const UserRef &user, const char *str);
 	void handlePrivmsg(const UserRef &user, const char *str);

@@ -317,6 +317,46 @@ void Channel::handleQuit(const UserRef &user, const char *message) {
 	pushMessage(buf);
 }
 
+void Channel::handleKick(const UserRef &user, const char *target, const char *message) {
+	auto i = users.find(target);
+	if (i != users.end()) {
+		users.erase(i);
+
+		Buffer packet;
+		packet.writeU32(id);
+		packet.writeU32(1);
+		packet.writeStr(target);
+
+		server->bouncer->sendToClients(
+			Packet::B2C_CHANNEL_USER_REMOVE, packet);
+	}
+
+	char buf[1024];
+
+	if (strcmp(target, server->currentNick) == 0) {
+		inChannel = false;
+
+		snprintf(buf, sizeof(buf),
+			"You have been kicked by %s (%s)",
+			user.nick.c_str(),
+			message);
+
+	} else if (user.isSelf) {
+		snprintf(buf, sizeof(buf),
+			"You have kicked %s (%s)",
+			target,
+			message);
+	} else {
+		snprintf(buf, sizeof(buf),
+			"%s has kicked %s (%s)",
+			user.nick.c_str(),
+			target,
+			message);
+	}
+
+	pushMessage(buf);
+}
+
 void Channel::handleNick(const UserRef &user, const char *newNick) {
 	auto i = users.find(user.nick);
 	if (i == users.end())

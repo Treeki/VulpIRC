@@ -203,7 +203,7 @@ void IRCServer::lineReceivedEvent(char *line, int size) {
 	} else if (strcmp(cmdBuf, "PART") == 0) {
 		Channel *c = findChannel(targetBuf, false);
 		if (c) {
-			c->handlePart(user, paramsAfterFirst);;
+			c->handlePart(user, paramsAfterFirst);
 			return;
 		}
 
@@ -211,6 +211,24 @@ void IRCServer::lineReceivedEvent(char *line, int size) {
 		for (auto &i : channels)
 			i.second->handleQuit(user, allParams);
 		return;
+
+	} else if (strcmp(cmdBuf, "KICK") == 0) {
+		char *space = strchr(paramsAfterFirst, ' ');
+		const char *kickMsg = "";
+
+		if (space) {
+			*space = 0;
+			kickMsg = space + 1;
+
+			if (*kickMsg == ':')
+				++kickMsg;
+		}
+
+		Channel *c = findChannel(targetBuf, false);
+		if (c) {
+			c->handleKick(user, paramsAfterFirst, kickMsg);
+			return;
+		}
 
 	} else if (strcmp(cmdBuf, "NICK") == 0) {
 		if (user.isSelf) {
