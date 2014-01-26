@@ -103,6 +103,7 @@ public:
 	void handleNick(const UserRef &user, const char *newNick);
 	void handleMode(const UserRef &user, const char *str);
 	void handlePrivmsg(const UserRef &user, const char *str);
+	void handleCtcp(const UserRef &user, const char *type, const char *params);
 	void handleTopic(const UserRef &user, const char *message);
 	void handleTopicInfo(const char *user, int timestamp);
 
@@ -124,6 +125,7 @@ public:
 
 	void handleQuit(const char *message);
 	void handlePrivmsg(const char *str);
+	void handleCtcp(const char *type, const char *params);
 
 	void showNickChange(const UserRef &user, const char *newNick);
 	void renamePartner(const char *_partner);

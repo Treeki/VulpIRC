@@ -310,16 +310,96 @@ void IRCServer::lineReceivedEvent(char *line, int size) {
 		}
 
 	} else if (strcmp(cmdBuf, "PRIVMSG") == 0) {
+
+		int endPos = strlen(paramsAfterFirst) - 1;
+		bool requireQueryWindow = true;
+		const char *ctcpType = NULL, *ctcpParams = NULL;
+
+		if ((endPos > 0) &&
+			(paramsAfterFirst[0] == 1) &&
+			(paramsAfterFirst[endPos] == 1))
+		{
+			// Try to parse a CTCP
+			// Cut off the 01 char at the end
+			paramsAfterFirst[endPos] = 0;
+
+			// Split the string into type + params
+			char *space = strchr(paramsAfterFirst, ' ');
+
+			ctcpType = &paramsAfterFirst[1];
+
+			if (space) {
+				*space = 0;
+				ctcpParams = space + 1;
+			} else {
+				ctcpParams = "";
+			}
+
+			if (strcmp(ctcpType, "ACTION") != 0)
+				requireQueryWindow = false;
+
+			// This needs to be extracted into a separate
+			// method at some point
+			if (strcmp(ctcpType, "VERSION") == 0) {
+				char reply[1000];
+				snprintf(reply, sizeof(reply),
+					"NOTICE %s :\x01VERSION boop:boop:boop\x01",
+					user.nick.c_str());
+				sendLine(reply);
+
+			} else if (strcmp(ctcpType, "PING") == 0) {
+				char reply[1000];
+				snprintf(reply, sizeof(reply),
+					"NOTICE %s :\x01PING %s\x01",
+					user.nick.c_str(),
+					ctcpParams);
+				sendLine(reply);
+
+			} else if (strcmp(ctcpType, "TIME") == 0) {
+				char reply[1000], formatTime[200];
+				time_t now = time(NULL);
+				tm *nowtm = localtime(&now);
+
+				strftime(formatTime, sizeof(formatTime),
+					"%c", nowtm);
+
+				snprintf(reply, sizeof(reply),
+					"NOTICE %s :\x01TIME :%s\x01",
+					user.nick.c_str(),
+					formatTime);
+				sendLine(reply);
+			}
+		}
+
+
 		if (strcmp(targetBuf, currentNick) == 0) {
-			Query *q = findQuery(user.nick.c_str(), true);
+			Query *q = findQuery(user.nick.c_str(), requireQueryWindow);
 			if (q) {
-				q->handlePrivmsg(paramsAfterFirst);
+				if (ctcpType)
+					q->handleCtcp(ctcpType, ctcpParams);
+				else
+					q->handlePrivmsg(paramsAfterFirst);
+				return;
+			} else if (ctcpType) {
+				// This CTCP didn't require a query window to be
+				// open, and we don't already have one, so
+				// dump a notification into the status window.
+				char buf[1000];
+				snprintf(buf, sizeof(buf),
+					"CTCP from %s : %s %s",
+					user.nick.c_str(),
+					ctcpType,
+					ctcpParams);
+				status.pushMessage(buf);
 				return;
 			}
 		} else {
 			Channel *c = findChannel(targetBuf, true);
 			if (c) {
-				c->handlePrivmsg(user, paramsAfterFirst);
+				if (ctcpType)
+					c->handleCtcp(user, ctcpType, ctcpParams);
+				else
+					c->handlePrivmsg(user, paramsAfterFirst);
 				return;
 			}
 		}

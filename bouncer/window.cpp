@@ -492,6 +492,30 @@ void Channel::handlePrivmsg(const UserRef &user, const char *str) {
 	pushMessage(buf);
 }
 
+void Channel::handleCtcp(const UserRef &user, const char *type, const char *params) {
+	char buf[15000];
+
+	if (strcmp(type, "ACTION") == 0) {
+		char prefix[2];
+		prefix[0] = getEffectivePrefixChar(user.nick.c_str());
+		prefix[1] = 0;
+
+		snprintf(buf, sizeof(buf),
+			"* %s%s %s",
+			prefix,
+			user.nick.c_str(),
+			params);
+
+	} else {
+		snprintf(buf, sizeof(buf),
+			"CTCP from %s : %s %s",
+			user.nick.c_str(),
+			type,
+			params);
+	}
+
+	pushMessage(buf);
+}
 
 
 
@@ -639,6 +663,26 @@ void Query::handlePrivmsg(const char *str) {
 		"<%s> %s",
 		partner.c_str(),
 		str);
+
+	pushMessage(buf);
+}
+
+void Query::handleCtcp(const char *type, const char *params) {
+	char buf[15000];
+
+	if (strcmp(type, "ACTION") == 0) {
+		snprintf(buf, sizeof(buf),
+			"* %s %s",
+			partner.c_str(),
+			params);
+
+	} else {
+		snprintf(buf, sizeof(buf),
+			"CTCP from %s : %s %s",
+			partner.c_str(),
+			type,
+			params);
+	}
 
 	pushMessage(buf);
 }
