@@ -50,6 +50,7 @@ int main(int argc, char **argv) {
 	DNS::start();
 
 	Bouncer bounce;
+	bounce.loadConfig();
 
 	int errcode = bounce.execute();
 	if (errcode < 0) {

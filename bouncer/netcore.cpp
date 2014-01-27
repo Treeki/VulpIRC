@@ -1,4 +1,5 @@
 #include "core.h"
+#include "ini.h"
 
 
 NetCore::NetCore() {
@@ -321,10 +322,49 @@ void NetCore::sendToClients(Packet::Type type, const Buffer &data) {
 
 
 
+
+void NetCore::loadConfig() {
+	auto sections = INI::load("config.ini");
+
+	for (auto &section : sections) {
+		if (section.title == "Server" && serverCount < SERVER_LIMIT) {
+			Server *s = constructServer(section.data["type"].c_str());
+			if (s) {
+				s->loadFromConfig(section.data);
+				registerServer(s);
+			}
+		}
+	}
+}
+
+void NetCore::saveConfig() {
+	std::list<INI::Section> sections;
+
+	for (int i = 0; i < serverCount; i++) {
+		INI::Section section;
+		section.title = "Server";
+
+		servers[i]->saveToConfig(section.data);
+
+		sections.push_back(section);
+	}
+
+	INI::save("config.ini", sections);
+}
+
+
+
+
 Client *Bouncer::constructClient() {
 	return new MobileClient(this);
 }
 
+Server *Bouncer::constructServer(const char *type) {
+	if (strcmp(type, "IRCServer") == 0)
+		return new IRCServer(this);
+
+	return 0;
+}
 
 
 

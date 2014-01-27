@@ -70,6 +70,12 @@ void MobileClient::handleDebugCommand(char *line, int size) {
 	} else if (strcmp(line, "addsrv") == 0) {
 		IRCServer *srv = new IRCServer(bouncer);
 		bouncer->registerServer(srv);
+	} else if (strcmp(line, "save") == 0) {
+		bouncer->saveConfig();
+
+		Buffer pkt;
+		pkt.writeStr("Bouncer configuration saved.");
+		sendPacket(Packet::B2C_STATUS, pkt);
 	}
 }
 

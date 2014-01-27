@@ -284,6 +284,9 @@ public:
 	Server(NetCore *_netCore);
 	virtual ~Server();
 
+	virtual void loadFromConfig(std::map<std::string, std::string> &data) = 0;
+	virtual void saveToConfig(std::map<std::string, std::string> &data) = 0;
+
 protected:
 	void connect(const char *hostname, int _port, bool _useTls);
 
@@ -361,6 +364,9 @@ private:
 public:
 	// This probably *shouldn't* be public... ><
 	void deleteQuery(Query *query);
+
+	virtual void loadFromConfig(std::map<std::string, std::string> &data);
+	virtual void saveToConfig(std::map<std::string, std::string> &data);
 };
 
 
@@ -389,8 +395,12 @@ public:
 	Client *findClientWithSessionKey(uint8_t *key) const;
 private:
 	virtual Client *constructClient() = 0;
+	virtual Server *constructServer(const char *type) = 0;
 
 public:
+	void loadConfig();
+	void saveConfig();
+
 	int registerServer(Server *server); // THIS FUNCTION WILL BE PROTECTED LATER
 protected:
 	void deregisterServer(int id);
@@ -400,6 +410,7 @@ protected:
 class Bouncer : public NetCore {
 private:
 	virtual Client *constructClient();
+	virtual Server *constructServer(const char *type);
 };
 
 

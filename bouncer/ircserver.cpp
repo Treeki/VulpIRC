@@ -635,3 +635,31 @@ char IRCServer::getEffectivePrefixChar(uint32_t modes) const {
 
 	return 0;
 }
+
+
+
+void IRCServer::loadFromConfig(std::map<std::string, std::string> &data) {
+	config.hostname = data["hostname"];
+	config.username = data["username"];
+	config.realname = data["realname"];
+	config.nickname = data["nickname"];
+	config.altNick = data["altnick"];
+	config.password = data["password"];
+	config.useTls = (data["tls"] == "y");
+	config.port = atoi(data["port"].c_str());
+}
+
+void IRCServer::saveToConfig(std::map<std::string, std::string> &data) {
+	data["type"] = "IRCServer";
+	data["hostname"] = config.hostname;
+	data["username"] = config.username;
+	data["realname"] = config.realname;
+	data["nickname"] = config.nickname;
+	data["altnick"] = config.altNick;
+	data["password"] = config.password;
+	data["tls"] = config.useTls ? "y" : "n";
+
+	char portstr[50];
+	snprintf(portstr, sizeof(portstr), "%d", config.port);
+	data["port"] = portstr;
+}
