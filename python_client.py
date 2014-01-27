@@ -45,16 +45,16 @@ def clearCachedPackets(pid):
 			packetCache.remove(packet)
 
 def reader():
-	global lastReceivedPacketID, authed, sessionKey
+	global lastReceivedPacketID, authed, sessionKey, nextID, packetCache
 	readbuf = b''
 
 	sockCopy = sock
 
-	print('(Connected)')
+	app.postEvent(mainwin, PacketEvent(-1, '(Connected to server)'))
 	while True:
 		data = sockCopy.recv(1024)
 		if not data:
-			print('(Disconnected)')
+			app.postEvent(mainwin, PacketEvent(-1, '(Disconnected from server)'))
 			break
 
 		readbuf += data
@@ -87,9 +87,14 @@ def reader():
 				if type == 0x8001:
 					sessionKey = packetdata
 					authed = True
+					app.postEvent(mainwin, PacketEvent(-2, None))
+					app.postEvent(mainwin, PacketEvent(-1, 'Session started.'))
+					nextID = 1
+					packetCache = []
 				elif type == 0x8002:
-					print('FAILED!')
+					app.postEvent(mainwin, PacketEvent(-1, 'Login error!'))
 				elif type == 0x8003:
+					app.postEvent(mainwin, PacketEvent(-1, 'Session resumed successfully.'))
 					authed = True
 					pid = u32.unpack(packetdata)[0]
 					clearCachedPackets(pid)
@@ -322,7 +327,20 @@ class MainWindow(QtWidgets.QMainWindow):
 			ptype = event.packetType
 			pdata = event.packetData
 
-			if ptype == 1:
+			if ptype == -1:
+				# Special type for messages coming from the reader
+				# function. Messy as fuck, but doesn't matter in this
+				# throwaway client
+				self.debugTab.pushMessage(pdata)
+			elif ptype == -2:
+				# Also a special type, this means that it's
+				# a new session and we should delete all our
+				# existing tabs and other state
+				for wid,tab in self.tabLookup.items():
+					self.tabs.removeTab(self.tabs.indexOf(tab))
+				self.tabLookup = {}
+
+			elif ptype == 1:
 				strlen = u32.unpack_from(pdata, 0)[0]
 				msg = pdata[4:4+strlen].decode('utf-8', 'replace')
 				self.debugTab.pushMessage(msg)
