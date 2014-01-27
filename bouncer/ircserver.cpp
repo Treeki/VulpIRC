@@ -27,7 +27,9 @@ void IRCServer::attachedToCore() {
 
 void IRCServer::connect() {
 	status.pushMessage("Connecting...");
-	Server::connect(config.hostname, config.port, config.useTls);
+	Server::connect(
+		config.hostname.c_str(), config.port,
+		config.useTls);
 }
 
 
@@ -92,13 +94,16 @@ void IRCServer::connectedEvent() {
 
 	char buf[2048];
 
-	if (strlen(config.password) > 0) {
-		sprintf(buf, "PASS %s", config.password);
+	if (config.password.size() > 0) {
+		sprintf(buf, "PASS %s", config.password.c_str());
 		sendLine(buf);
 	}
 
 	sprintf(buf, "USER %s 0 * :%s\r\nNICK %s",
-		config.username, config.realname, config.nickname);
+		config.username.c_str(),
+		config.realname.c_str(),
+		config.nickname.c_str());
+
 	sendLine(buf);
 }
 void IRCServer::disconnectedEvent() {

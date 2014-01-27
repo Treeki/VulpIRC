@@ -67,21 +67,9 @@ void MobileClient::handleDebugCommand(char *line, int size) {
 
 	} else if (strcmp(line, "quit") == 0) {
 		bouncer->quitFlag = true;
-	} else if (strncmp(&line[1], "ddsrv ", 6) == 0) {
+	} else if (strcmp(line, "addsrv") == 0) {
 		IRCServer *srv = new IRCServer(bouncer);
-		strcpy(srv->config.hostname, &line[7]);
-		srv->config.useTls = (line[0] == 's');
-		srv->config.port = (line[0] == 's') ? 1191 : 6667;
-		strcpy(srv->config.nickname, "Ninjifox");
-		strcpy(srv->config.username, "boop");
-		strcpy(srv->config.realname, "boop");
-		strcpy(srv->config.password, "");
 		bouncer->registerServer(srv);
-
-		Buffer pkt;
-		pkt.writeStr("Your wish is my command!");
-		for (int i = 0; i < bouncer->clientCount; i++)
-			bouncer->clients[i]->sendPacket(Packet::B2C_STATUS, pkt);
 	}
 }
 

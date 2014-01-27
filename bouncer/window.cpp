@@ -20,6 +20,15 @@ void Window::syncStateForClient(Buffer &output) {
 	}
 }
 
+void Window::notifyWindowRename() {
+	Buffer packet;
+	packet.writeU32(id);
+	packet.writeStr(getTitle());
+
+	core->sendToClients(
+		Packet::B2C_WINDOW_RENAME, packet);
+}
+
 void Window::pushMessage(const char *str) {
 	messages.push_back(str);
 
@@ -53,7 +62,10 @@ StatusWindow::StatusWindow(IRCServer *_server) :
 }
 
 const char *StatusWindow::getTitle() const {
-	return server->config.hostname;
+	if (server->config.hostname.size() == 0)
+		return "<New Server>";
+	else
+		return server->config.hostname.c_str();
 }
 
 int StatusWindow::getType() const {
@@ -61,21 +73,100 @@ int StatusWindow::getType() const {
 }
 
 void StatusWindow::handleUserInput(const char *str) {
+	char buf[1024];
+
 	if (str[0] == '/') {
 		// moof
 		if (strcmp(str, "/connect") == 0) {
-			server->connect();
+
+			// Check if we have everything needed...
+			if (server->config.nickname.size() == 0) {
+				pushMessage("Use /defaultnick <name> to set a nickname");
+			} else if (server->config.altNick.size() == 0) {
+				pushMessage("Use /altnick <name> to set an alternate nickname");
+			} else if (server->config.hostname.size() == 0) {
+				pushMessage("Use /server <name> to set an IRC server to connect to");
+			} else {
+				server->connect();
+			}
+
 		} else if (strcmp(str, "/disconnect") == 0) {
 			server->close();
-		} else if (strncmp(str, "/password ", 10) == 0) {
-			pushMessage("Password set.");
 
-			// This is ugly, ugh
-			strncpy(
-				server->config.password,
-				&str[10],
-				sizeof(server->config.password));
-			server->config.password[sizeof(server->config.password) - 1] = 0;
+		} else if (strncmp(str, "/defaultnick ", 13) == 0) {
+			server->config.nickname = &str[13];
+
+			// generate a default altnick if we don't have one already
+			if (server->config.altNick.size() == 0) {
+				server->config.altNick = server->config.nickname + "_";
+			}
+
+			snprintf(buf, sizeof(buf),
+				"Default nickname changed to: %s",
+				server->config.nickname.c_str());
+			pushMessage(buf);
+
+		} else if (strncmp(str, "/altnick ", 9) == 0) {
+			server->config.altNick = &str[9];
+
+			snprintf(buf, sizeof(buf),
+				"Alternate nickname changed to: %s",
+				server->config.altNick.c_str());
+			pushMessage(buf);
+
+		} else if (strncmp(str, "/server ", 8) == 0) {
+			server->config.hostname = &str[8];
+
+			snprintf(buf, sizeof(buf),
+				"Server address changed to: %s",
+				server->config.hostname.c_str());
+			pushMessage(buf);
+
+			notifyWindowRename();
+
+		} else if (strncmp(str, "/port ", 6) == 0) {
+			const char *p = &str[6];
+			if (*p == '+') {
+				server->config.useTls = true;
+				++p;
+			} else {
+				server->config.useTls = false;
+			}
+			server->config.port = atoi(p);
+
+			snprintf(buf, sizeof(buf),
+				"Server port changed to %d, TLS %s",
+				server->config.port,
+				server->config.useTls ? "on" : "off");
+			pushMessage(buf);
+
+		} else if (strncmp(str, "/username ", 10) == 0) {
+			server->config.username = &str[10];
+
+			snprintf(buf, sizeof(buf),
+				"Username changed to: %s",
+				server->config.username.c_str());
+			pushMessage(buf);
+
+		} else if (strncmp(str, "/realname ", 10) == 0) {
+			server->config.realname = &str[10];
+
+			snprintf(buf, sizeof(buf),
+				"Real name changed to: %s",
+				server->config.username.c_str());
+			pushMessage(buf);
+
+		} else if (strncmp(str, "/password", 9) == 0) {
+
+			if (strlen(str) == 9)
+				server->config.password = "";
+			else
+				server->config.password = &str[10];
+
+			if (server->config.password.size() > 0)
+				pushMessage("Server password changed.");
+			else
+				pushMessage("Server password cleared.");
 		}
 	} else {
 		server->sendLine(str);
@@ -697,12 +788,7 @@ void Query::handleCtcp(const char *type, const char *params) {
 }
 
 void Query::renamePartner(const char *_partner) {
-	Buffer packet;
-	packet.writeU32(id);
-	packet.writeStr(_partner);
-
-	server->bouncer->sendToClients(
-		Packet::B2C_WINDOW_RENAME, packet);
-
 	partner = _partner;
+
+	notifyWindowRename();
 }

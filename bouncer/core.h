@@ -67,6 +67,7 @@ public:
 	virtual void handleUserClosed();
 
 	void pushMessage(const char *str);
+	void notifyWindowRename();
 };
 
 class StatusWindow : public Window {
@@ -303,13 +304,18 @@ private:
 };
 
 struct IRCNetworkConfig {
-	char hostname[512];
-	char nickname[128];
-	char username[128];
-	char realname[128];
-	char password[128];
+	std::string hostname, username, realname;
+	std::string nickname, altNick;
+	std::string password;
 	int port;
 	bool useTls;
+
+	IRCNetworkConfig() {
+		username = "user";
+		realname = "VulpIRC User";
+		port = 6667;
+		useTls = false;
+	}
 };
 
 class IRCServer : public Server {
