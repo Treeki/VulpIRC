@@ -41,6 +41,16 @@ void MobileClient::packetReceivedEvent(Packet::Type type, Buffer &pkt) {
 
 		window->handleUserInput(text);
 
+	} else if (type == Packet::C2B_WINDOW_CLOSE) {
+		int winID = pkt.readU32();
+		Window *window = bouncer->findWindow(winID);
+		if (!window) {
+			printf("[MobileClient:%p] Close request for unknown window %d\n", this, winID);
+			return;
+		}
+
+		window->handleUserClosed();
+
 	} else {
 		printf("[MobileClient:%p] Unrecognised packet for MobileClient: type %d, size %d\n",
 			this, type, pkt.size());

@@ -39,6 +39,10 @@ void Window::pushMessage(const char *str) {
 	}
 }
 
+void Window::handleUserClosed() {
+	// Do nothing. (For now?)
+}
+
 
 
 
@@ -589,6 +593,11 @@ const char *Query::getTitle() const {
 
 int Query::getType() const {
 	return 3;
+}
+
+
+void Query::handleUserClosed() {
+	server->deleteQuery(this);
 }
 
 void Query::handleUserInput(const char *str) {

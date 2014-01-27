@@ -358,6 +358,20 @@ class MainWindow(QtWidgets.QMainWindow):
 					self.tabs.addTab(tab, wtitle)
 					self.tabLookup[wid] = tab
 					tab.pushMessage('\n'.join(msgs))
+			elif ptype == 0x101:
+				# WINDOW CLOSE
+				wndCount = u32.unpack_from(pdata, 0)[0]
+				pos = 4
+
+				for i in range(wndCount):
+					wid = u32.unpack_from(pdata, pos)[0]
+					pos += 4
+
+					if wid in self.tabLookup:
+						tab = self.tabLookup[wid]
+						self.tabs.removeTab(self.tabs.indexOf(tab))
+						del self.tabLookup[wid]
+
 			elif ptype == 0x102:
 				# WINDOW MESSAGES
 				wndID, msglen = struct.unpack_from('<II', pdata, 0)
@@ -427,8 +441,11 @@ class MainWindow(QtWidgets.QMainWindow):
 	def handleWindowInput(self, text):
 		wid = self.sender().winID
 		with packetLock:
-			data = str(text).encode('utf-8')
-			writePacket(0x102, struct.pack('<II', wid, len(data)) + data)
+			if text == '/close':
+				writePacket(0x101, u32.pack(wid))
+			else:
+				data = str(text).encode('utf-8')
+				writePacket(0x102, struct.pack('<II', wid, len(data)) + data)
 
 
 app = QtWidgets.QApplication(sys.argv)

@@ -64,6 +64,7 @@ public:
 	virtual int getType() const = 0;
 	virtual void syncStateForClient(Buffer &output);
 	virtual void handleUserInput(const char *str) { }
+	virtual void handleUserClosed();
 
 	void pushMessage(const char *str);
 };
@@ -122,6 +123,7 @@ public:
 	virtual const char *getTitle() const;
 	virtual int getType() const;
 	virtual void handleUserInput(const char *str);
+	virtual void handleUserClosed();
 
 	void handleQuit(const char *message);
 	void handlePrivmsg(const char *str);
@@ -190,6 +192,7 @@ struct Packet {
 		B2C_WINDOW_MESSAGE = 0x102,
 		B2C_WINDOW_RENAME = 0x103,
 
+		C2B_WINDOW_CLOSE = 0x101,
 		C2B_WINDOW_INPUT = 0x102,
 
 		B2C_CHANNEL_USER_ADD = 0x120,
@@ -348,6 +351,10 @@ private:
 
 	Channel *findChannel(const char *name, bool createIfNeeded);
 	Query *findQuery(const char *name, bool createIfNeeded);
+
+public:
+	// This probably *shouldn't* be public... ><
+	void deleteQuery(Query *query);
 };
 
 
