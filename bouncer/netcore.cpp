@@ -83,6 +83,8 @@ int NetCore::execute() {
 
 
 	// do stuff!
+	quitFlag = false;
+
 	while (!quitFlag) {
 		fd_set readSet, writeSet;
 		FD_ZERO(&readSet);
