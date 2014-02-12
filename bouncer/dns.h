@@ -7,6 +7,7 @@
 
 namespace DNS {
 	void start();
+	void stop();
 	int makeQuery(const char *name);
 	void closeQuery(int id);
 	bool checkQuery(int id, in_addr *pResult, bool *pIsError);

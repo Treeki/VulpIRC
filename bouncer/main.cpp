@@ -53,6 +53,8 @@ int main(int argc, char **argv) {
 	bounce.loadConfig();
 
 	int errcode = bounce.execute();
+
+	DNS::stop();
 	if (errcode < 0) {
 		printf("(Bouncer::execute failed with %d)\n", errcode);
 		return EXIT_FAILURE;

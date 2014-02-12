@@ -22,6 +22,7 @@ struct DNSQuery {
 };
 
 static DNSQuery dnsQueue[DNS_QUERY_COUNT];
+static bool dnsQuit = false;
 static pthread_t dnsThread;
 static pthread_mutex_t dnsQueueMutex;
 static pthread_cond_t dnsQueueCond;
@@ -39,6 +40,16 @@ void DNS::start() {
 		dnsQueue[i].status = DQS_FREE;
 		dnsQueue[i].version = 0;
 	}
+}
+
+void DNS::stop() {
+	pthread_mutex_lock(&dnsQueueMutex);
+	dnsQuit = true;
+	pthread_mutex_unlock(&dnsQueueMutex);
+	pthread_cond_signal(&dnsQueueCond);
+
+	pthread_join(dnsThread, NULL);
+
 }
 
 int DNS::makeQuery(const char *name) {
@@ -102,7 +113,9 @@ bool DNS::checkQuery(int id, in_addr *pResult, bool *pIsError) {
 void *dnsThreadProc(void *) {
 	pthread_mutex_lock(&dnsQueueMutex);
 
-	for (;;) {
+	dnsQuit = false;
+
+	while (!dnsQuit) {
 		for (int i = 0; i < DNS_QUERY_COUNT; i++) {
 			if (dnsQueue[i].status == DQS_WAITING) {
 				char nameCopy[DNS_QUERY_NAME_SIZE];
