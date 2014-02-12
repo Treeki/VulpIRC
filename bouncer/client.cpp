@@ -124,8 +124,13 @@ void Client::generateSessionKey() {
 
 void Client::clearCachedPackets(int maxID) {
 	packetCache.remove_if([maxID](Packet *&pkt) {
-			return (pkt->id <= maxID);
-			});
+		if (pkt->id <= maxID) {
+			delete pkt;
+			return true;
+		} else {
+			return false;
+		}
+	});
 }
 
 
