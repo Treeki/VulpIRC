@@ -39,6 +39,13 @@ bool initTLS() {
 
 	return true;
 }
+
+void cleanupTLS() {
+	gnutls_certificate_free_credentials(g_clientCreds);
+	gnutls_certificate_free_credentials(g_serverCreds);
+	gnutls_dh_params_deinit(dh_params);
+	gnutls_global_deinit();
+}
 #endif
 
 int main(int argc, char **argv) {
@@ -55,6 +62,11 @@ int main(int argc, char **argv) {
 	int errcode = bounce.execute();
 
 	DNS::stop();
+
+#ifdef USE_GNUTLS
+	cleanupTLS();
+#endif
+
 	if (errcode < 0) {
 		printf("(Bouncer::execute failed with %d)\n", errcode);
 		return EXIT_FAILURE;
