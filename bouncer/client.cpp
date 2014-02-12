@@ -218,6 +218,7 @@ void Client::processReadBuffer() {
 		Packet::Type type = (Packet::Type)inputBuf.readU16();
 		int reserved = inputBuf.readU16();
 		uint32_t packetSize = inputBuf.readU32();
+		bool silentlyIgnore = false;
 
 		// Do we now have the whole packet in memory...?
 		int extHeaderSize = (type & Packet::T_OUT_OF_BAND_FLAG) ? 0 : 8;
@@ -231,7 +232,14 @@ void Client::processReadBuffer() {
 			uint32_t packetID = inputBuf.readU32();
 			uint32_t lastReceivedByClient = inputBuf.readU32();
 
-			lastReceivedPacketID = packetID;
+			if (packetID > lastReceivedPacketID) {
+				// This is a new packet
+				lastReceivedPacketID = packetID;
+			} else {
+				// We've already seen this packet, silently ignore it!
+				silentlyIgnore = true;
+			}
+
 			clearCachedPackets(lastReceivedByClient);
 		}
 
@@ -239,7 +247,9 @@ void Client::processReadBuffer() {
 
 		// Save the position of the next packet
 		readBufPosition = inputBuf.readTell() + packetSize;
-		handlePacket(type, &inputBuf.data()[inputBuf.readTell()], packetSize);
+
+		if (!silentlyIgnore)
+			handlePacket(type, &inputBuf.data()[inputBuf.readTell()], packetSize);
 
 		inputBuf.readSeek(readBufPosition);
 	}
