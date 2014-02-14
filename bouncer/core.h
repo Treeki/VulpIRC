@@ -66,7 +66,7 @@ public:
 	virtual void handleUserInput(const char *str) { }
 	virtual void handleUserClosed();
 
-	void pushMessage(const char *str);
+	void pushMessage(const char *str, int priority = 0);
 	void notifyWindowRename();
 };
 
@@ -108,6 +108,8 @@ public:
 	void handleCtcp(const UserRef &user, const char *type, const char *params);
 	void handleTopic(const UserRef &user, const char *message);
 	void handleTopicInfo(const char *user, int timestamp);
+
+	void outputUserMessage(const char *nick, const char *message, bool isAction);
 
 	char getEffectivePrefixChar(const char *nick) const;
 

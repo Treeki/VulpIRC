@@ -1,4 +1,5 @@
 #include "core.h"
+#include "richtext.h"
 
 Window::Window(NetCore *_core) {
 	core = _core;
@@ -29,7 +30,7 @@ void Window::notifyWindowRename() {
 		Packet::B2C_WINDOW_RENAME, packet);
 }
 
-void Window::pushMessage(const char *str) {
+void Window::pushMessage(const char *str, int priority) {
 	messages.push_back(str);
 
 	bool createdPacket = false;
@@ -39,6 +40,7 @@ void Window::pushMessage(const char *str) {
 		if (core->clients[i]->isAuthed()) {
 			if (!createdPacket) {
 				packet.writeU32(id);
+				packet.writeU8(priority);
 				packet.writeStr(str);
 				createdPacket = true;
 			}
@@ -198,18 +200,7 @@ void Channel::handleUserInput(const char *str) {
 
 	if (str[0] == '/') {
 		if (strncmp(str, "/me ", 4) == 0) {
-			// The duplication of code between here and
-			// handlePrivmsg is ugly. TODO: fixme.
-			char prefix[2];
-			prefix[0] = getEffectivePrefixChar(server->currentNick);
-			prefix[1] = 0;
-
-			snprintf(msgBuf, sizeof(msgBuf),
-				"* %s%s %s",
-				prefix,
-				server->currentNick,
-				&str[4]);
-			pushMessage(msgBuf);
+			outputUserMessage(server->currentNick, &str[4], /*isAction=*/true);
 
 			snprintf(msgBuf, sizeof(msgBuf),
 				"PRIVMSG %s :\x01" "ACTION %s\x01",
@@ -218,18 +209,7 @@ void Channel::handleUserInput(const char *str) {
 			server->sendLine(msgBuf);
 		}
 	} else {
-		// Aaaand this is also pretty ugly ><;;
-		// TODO: fixme.
-		char prefix[2];
-		prefix[0] = getEffectivePrefixChar(server->currentNick);
-		prefix[1] = 0;
-
-		snprintf(msgBuf, sizeof(msgBuf),
-			"<%s%s> %s",
-			prefix,
-			server->currentNick,
-			str);
-		pushMessage(msgBuf);
+		outputUserMessage(server->currentNick, str, /*isAction=*/false);
 
 		snprintf(msgBuf, sizeof(msgBuf),
 			"PRIVMSG %s :%s",
@@ -573,61 +553,61 @@ void Channel::handleMode(const UserRef &user, const char *str) {
 }
 
 void Channel::handlePrivmsg(const UserRef &user, const char *str) {
-	char prefix[2];
-	prefix[0] = getEffectivePrefixChar(user.nick.c_str());
-	prefix[1] = 0;
+	outputUserMessage(user.nick.c_str(), str, /*isAction=*/false);
+}
 
-	char buf[15000];
-	snprintf(buf, 15000,
-		"<%s%s> %s",
-		prefix,
-		user.nick.c_str(),
-		str);
+void Channel::outputUserMessage(const char *nick, const char *str, bool isAction) {
+	RichTextBuilder rt;
 
-	pushMessage(buf);
+	if (isAction) {
+		rt.foreground(COL_LEVEL_BASE, COL_ACTION);
+		rt.append("* ");
+	} else {
+		rt.writeS8('<');
+	}
+
+	char prefix = getEffectivePrefixChar(nick);
+	if (prefix != 0)
+		rt.writeS8(prefix);
+
+	rt.append(nick);
+	rt.append(isAction ? " " : "> ");
+
+	rt.appendIRC(str);
+
+	pushMessage(rt.c_str(), 2);
 }
 
 void Channel::handleCtcp(const UserRef &user, const char *type, const char *params) {
 	char buf[15000];
 
 	if (strcmp(type, "ACTION") == 0) {
-		char prefix[2];
-		prefix[0] = getEffectivePrefixChar(user.nick.c_str());
-		prefix[1] = 0;
-
-		snprintf(buf, sizeof(buf),
-			"* %s%s %s",
-			prefix,
-			user.nick.c_str(),
-			params);
-
+		outputUserMessage(user.nick.c_str(), params, /*isAction=*/true);
 	} else {
 		snprintf(buf, sizeof(buf),
 			"CTCP from %s : %s %s",
 			user.nick.c_str(),
 			type,
 			params);
+		pushMessage(buf, 2);
 	}
-
-	pushMessage(buf);
 }
 
 
 
 void Channel::handleTopic(const UserRef &user, const char *message) {
-	char buf[1024];
+	RichTextBuilder rt;
+	rt.foreground(COL_LEVEL_BASE, COL_CHANNEL_NOTICE);
 
 	if (user.isValid) {
-		snprintf(buf, sizeof(buf),
-			"%s changed the topic to: %s",
-			user.nick.c_str(),
-			message);
+		rt.append(user.nick.c_str());
+		rt.append(" changed the topic to: ");
+		rt.appendIRC(message);
 	} else {
-		snprintf(buf, sizeof(buf),
-			"Topic: %s",
-			message);
+		rt.append("Topic: ");
+		rt.appendIRC(message);
 	}
-	pushMessage(buf);
+	pushMessage(rt.c_str());
 
 	topic = message;
 
@@ -639,12 +619,18 @@ void Channel::handleTopic(const UserRef &user, const char *message) {
 }
 
 void Channel::handleTopicInfo(const char *user, int timestamp) {
-	char buf[1024];
-	snprintf(buf, sizeof(buf),
-		"Topic set by %s at %d",
-		user,
-		timestamp);
-	pushMessage(buf);
+	char intConv[50];
+	snprintf(intConv, sizeof(intConv), "%d", timestamp);
+
+	RichTextBuilder rt;
+	rt.foreground(COL_LEVEL_BASE, COL_CHANNEL_NOTICE);
+
+	rt.append("Topic set by ");
+	rt.append(user);
+	rt.append(" at ");
+	rt.append(intConv);
+
+	pushMessage(rt.c_str());
 }
 
 
@@ -764,7 +750,7 @@ void Query::handlePrivmsg(const char *str) {
 		partner.c_str(),
 		str);
 
-	pushMessage(buf);
+	pushMessage(buf, 2);
 }
 
 void Query::handleCtcp(const char *type, const char *params) {
@@ -784,7 +770,7 @@ void Query::handleCtcp(const char *type, const char *params) {
 			params);
 	}
 
-	pushMessage(buf);
+	pushMessage(buf, 2);
 }
 
 void Query::renamePartner(const char *_partner) {

@@ -5,6 +5,33 @@
 import sys, socket, ssl, threading, struct
 from PyQt5 import QtCore, QtGui, QtWidgets
 
+PRESET_COLOURS = [
+	QtGui.QColor(255,255,255), # COL_IRC_WHITE = 0,
+	QtGui.QColor(  0,  0,  0), # COL_IRC_BLACK = 1,
+	QtGui.QColor(  0,  0,128), # COL_IRC_BLUE = 2,
+	QtGui.QColor(  0,128,  0), # COL_IRC_GREEN = 3,
+	QtGui.QColor(255,  0,  0), # COL_IRC_RED = 4,
+	QtGui.QColor(128,  0,  0), # COL_IRC_BROWN = 5,
+	QtGui.QColor(128,  0,128), # COL_IRC_PURPLE = 6,
+	QtGui.QColor(128,128,  0), # COL_IRC_ORANGE = 7,
+	QtGui.QColor(255,255,  0), # COL_IRC_YELLOW = 8,
+	QtGui.QColor(  0,255,  0), # COL_IRC_LIME = 9,
+	QtGui.QColor(  0,128,128), # COL_IRC_TEAL = 10,
+	QtGui.QColor(  0,255,255), # COL_IRC_CYAN = 11,
+	QtGui.QColor(  0,  0,255), # COL_IRC_LIGHT_BLUE = 12,
+	QtGui.QColor(255,  0,255), # COL_IRC_PINK = 13,
+	QtGui.QColor(128,128,128), # COL_IRC_GREY = 14,
+	QtGui.QColor(192,192,192), # COL_IRC_LIGHT_GREY = 15,
+	QtGui.QColor(  0,  0,  0), # COL_DEFAULT_FG = 16,
+	QtGui.QColor(255,255,255), # COL_DEFAULT_BG = 17,
+	QtGui.QColor(102,  0,204), # COL_ACTION = 18,
+	QtGui.QColor(  0,153,  0), # COL_JOIN = 19,
+	QtGui.QColor(102,  0,  0), # COL_PART = 20,
+	QtGui.QColor(102,  0,  0), # COL_QUIT = 21,
+	QtGui.QColor(102,  0,  0), # COL_KICK = 22,
+	QtGui.QColor( 51,102,153), # COL_CHANNEL_NOTICE = 23,
+]
+
 protocolVer = 1
 sock = None
 authed = False
@@ -139,6 +166,9 @@ class WindowTab(QtWidgets.QWidget):
 
 		self.output = QtWidgets.QTextEdit(self)
 		self.output.setReadOnly(True)
+		self.output.setTextColor(PRESET_COLOURS[16])
+		self.output.setTextBackgroundColor(PRESET_COLOURS[17])
+
 		self.input = QtWidgets.QLineEdit(self)
 		self.input.returnPressed.connect(self.handleLineEntered)
 
@@ -160,7 +190,80 @@ class WindowTab(QtWidgets.QWidget):
 		isAtEnd = cursor.atEnd()
 		cursor.movePosition(QtGui.QTextCursor.End)
 		cursor.clearSelection()
-		cursor.insertText(msg)
+
+		fmt = QtGui.QTextCharFormat()
+
+		foreground = [None,None,None,None]
+		background = [None,None,None,None]
+
+		pos = 0
+		build = ''
+		l = len(msg)
+		while pos < l:
+			char = msg[pos]
+			c = ord(char)
+			if c == 7 or c == 10 or c >= 0x20:
+				build += char
+			else:
+				cursor.insertText(build, fmt)
+				build = ''
+
+			if c == 1:
+				fmt.setFontWeight(QtGui.QFont.Bold)
+			elif c == 2:
+				fmt.setFontWeight(QtGui.QFont.Normal)
+			elif c == 3:
+				fmt.setFontItalic(True)
+			elif c == 4:
+				fmt.setFontItalic(False)
+			elif c == 5:
+				fmt.setFontUnderline(True)
+			elif c == 6:
+				fmt.setFontUnderline(False)
+			elif (c >= 0x10 and c <= 0x1F):
+				layer = c & 3
+				isBG = (True if ((c & 4) == 4) else False)
+				isEnd = (True if ((c & 8) == 8) else False)
+
+				col = None
+
+				if not isEnd and (pos + 1) < l:
+					bit1 = ord(msg[pos + 1])
+					col = None
+					if (bit1 & 1) == 1:
+						col = PRESET_COLOURS[bit1 >> 1]
+						pos += 1
+					elif (pos + 3) < l:
+						bit2 = ord(msg[pos + 2])
+						bit3 = ord(msg[pos + 3])
+						pos += 3
+						col = QtGui.QColor(bit1,bit2,bit3)
+
+				if isBG:
+					array = background
+				else:
+					array = foreground
+
+				array[layer] = col
+				maxcol = None
+				for check in array:
+					if check is not None:
+						maxcol = check
+
+				if isBG:
+					if maxcol:
+						fmt.setBackground(QtGui.QBrush(maxcol))
+					else:
+						fmt.clearBackground()
+				else:
+					if maxcol:
+						fmt.setForeground(QtGui.QBrush(maxcol))
+					else:
+						fmt.clearForeground()
+
+
+			pos += 1
+		cursor.insertText(build, fmt)
 		cursor.insertText('\n')
 
 		if isAtEnd:
@@ -392,8 +495,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
 			elif ptype == 0x102:
 				# WINDOW MESSAGES
-				wndID, msglen = struct.unpack_from('<II', pdata, 0)
-				msg = pdata[8:8+msglen].decode('utf-8', 'replace')
+				wndID, priority, msglen = struct.unpack_from('<IbI', pdata, 0)
+				msg = pdata[9:9+msglen].decode('utf-8', 'replace')
 				self.tabLookup[wndID].pushMessage(msg)
 			elif ptype == 0x103:
 				# WINDOW RENAME
