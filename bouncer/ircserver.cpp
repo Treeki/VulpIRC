@@ -116,9 +116,6 @@ void IRCServer::disconnectedEvent() {
 void IRCServer::lineReceivedEvent(char *line, int size) {
 	printf("[%d] { %s }\n", size, line);
 
-	status.pushMessage(line);
-
-
 	// Process this line...!
 	UserRef user;
 
@@ -507,6 +504,7 @@ void IRCServer::lineReceivedEvent(char *line, int size) {
 	}
 
 	status.pushMessage("!! Unhandled !!");
+	status.pushMessage(line);
 }
 
 
