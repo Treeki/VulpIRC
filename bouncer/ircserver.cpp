@@ -355,7 +355,7 @@ void IRCServer::lineReceivedEvent(char *line, int size) {
 			if (strcmp(ctcpType, "VERSION") == 0) {
 				char reply[1000];
 				snprintf(reply, sizeof(reply),
-					"NOTICE %s :\x01VERSION boop:boop:boop\x01",
+					"NOTICE %s :\x01VERSION " VULPIRC_VERSION_STRING "\x01",
 					user.nick.c_str());
 				sendLine(reply);
 

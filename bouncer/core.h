@@ -1,6 +1,9 @@
 #ifndef CORE_H
 #define CORE_H 
 
+// CTCP version reply
+#define VULPIRC_VERSION_STRING "VulpIRC 0.0.0"
+
 // Set in build.sh
 //#define USE_GNUTLS
 

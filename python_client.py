@@ -407,7 +407,7 @@ class MainWindow(QtWidgets.QMainWindow):
 	def __init__(self, parent=None):
 		QtWidgets.QMainWindow.__init__(self, parent)
 
-		self.setWindowTitle('Ninjifox\'s IRC Client Test')
+		self.setWindowTitle('VulpIRC Development Client')
 
 		tb = self.addToolBar('Main')
 		tb.addAction('Connect', self.handleConnect)
