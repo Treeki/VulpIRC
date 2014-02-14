@@ -230,7 +230,9 @@ void Channel::syncStateForClient(Buffer &output) {
 		output.writeU8(server->getEffectivePrefixChar(i.second));
 	}
 
-	output.writeStr(topic.c_str());
+	RichTextBuilder topicConverter;
+	topicConverter.appendIRC(topic.c_str());
+	output.writeStr(topicConverter.c_str());
 }
 
 
@@ -289,6 +291,47 @@ void Channel::handleNameReply(const char *str) {
 	}
 }
 
+void Channel::outputUserAction(int colour, const UserRef &user, const char *prefix, const char *verb, const char *message, bool showChannel) {
+	RichTextBuilder rt;
+	rt.foreground(COL_LEVEL_BASE, colour);
+	rt.append(prefix);
+	rt.writeU8(' ');
+
+	if (user.isSelf) {
+		rt.append("You have ");
+	} else {
+		rt.bold();
+		rt.append(user.nick.c_str());
+		rt.endBold();
+
+		rt.append(" (");
+
+		rt.foreground(COL_LEVEL_BASE + 1, COL_DEFAULT_FG);
+		rt.append(user.ident.c_str());
+		rt.writeU8('@');
+		rt.append(user.hostmask.c_str());
+		rt.endForeground(COL_LEVEL_BASE + 1);
+
+		rt.append(") has ");
+	}
+
+	rt.append(verb);
+
+	if (showChannel) {
+		rt.writeU8(' ');
+		rt.append(name.c_str());
+	}
+
+	if (message) {
+		rt.foreground(COL_LEVEL_BASE + 1, COL_DEFAULT_FG);
+		rt.append(" (");
+		rt.appendIRC(message);
+		rt.writeU8(')');
+	}
+
+	pushMessage(rt.c_str());
+}
+
 void Channel::handleJoin(const UserRef &user) {
 	if (user.isSelf) {
 		Buffer packet;
@@ -298,11 +341,10 @@ void Channel::handleJoin(const UserRef &user) {
 		server->bouncer->sendToClients(
 			Packet::B2C_CHANNEL_USER_REMOVE, packet);
 
-
 		users.clear();
 
 		inChannel = true;
-		pushMessage("You have joined the channel!");
+
 	} else {
 		Buffer packet;
 		packet.writeU32(id);
@@ -315,16 +357,9 @@ void Channel::handleJoin(const UserRef &user) {
 			Packet::B2C_CHANNEL_USER_ADD, packet);
 
 		users[user.nick] = 0;
-
-		char buf[1024];
-		snprintf(buf, 1024,
-			"%s (%s@%s) has joined",
-			user.nick.c_str(),
-			user.ident.c_str(),
-			user.hostmask.c_str());
-
-		pushMessage(buf);
 	}
+
+	outputUserAction(COL_JOIN, user, "->", "joined", 0);
 }
 
 void Channel::handlePart(const UserRef &user, const char *message) {
@@ -341,25 +376,11 @@ void Channel::handlePart(const UserRef &user, const char *message) {
 			Packet::B2C_CHANNEL_USER_REMOVE, packet);
 	}
 
-	char buf[1024];
-
 	if (user.isSelf) {
 		inChannel = false;
-
-		snprintf(buf, 1024,
-			"You have left the channel (%s)",
-			message);
-		pushMessage(buf);
-	} else {
-		snprintf(buf, 1024,
-			"%s (%s@%s) has parted (%s)",
-			user.nick.c_str(),
-			user.ident.c_str(),
-			user.hostmask.c_str(),
-			message);
-
-		pushMessage(buf);
 	}
+
+	outputUserAction(COL_PART, user, "<-", "parted", message);
 }
 
 void Channel::handleQuit(const UserRef &user, const char *message) {
@@ -380,16 +401,7 @@ void Channel::handleQuit(const UserRef &user, const char *message) {
 	server->bouncer->sendToClients(
 		Packet::B2C_CHANNEL_USER_REMOVE, packet);
 
-	char buf[1024];
-
-	snprintf(buf, 1024,
-		"%s (%s@%s) has quit (%s)",
-		user.nick.c_str(),
-		user.ident.c_str(),
-		user.hostmask.c_str(),
-		message);
-
-	pushMessage(buf);
+	outputUserAction(COL_QUIT, user, "<-", "quit", message, false);
 }
 
 void Channel::handleKick(const UserRef &user, const char *target, const char *message) {
@@ -406,30 +418,36 @@ void Channel::handleKick(const UserRef &user, const char *target, const char *me
 			Packet::B2C_CHANNEL_USER_REMOVE, packet);
 	}
 
-	char buf[1024];
+	RichTextBuilder rt;
+	rt.foreground(COL_LEVEL_BASE, COL_KICK);
+	rt.append("*** ");
 
 	if (strcmp(target, server->currentNick) == 0) {
 		inChannel = false;
 
-		snprintf(buf, sizeof(buf),
-			"You have been kicked by %s (%s)",
-			user.nick.c_str(),
-			message);
+		rt.append("You have been kicked by ");
+		rt.append(user.nick.c_str());
 
-	} else if (user.isSelf) {
-		snprintf(buf, sizeof(buf),
-			"You have kicked %s (%s)",
-			target,
-			message);
 	} else {
-		snprintf(buf, sizeof(buf),
-			"%s has kicked %s (%s)",
-			user.nick.c_str(),
-			target,
-			message);
+		if (user.isSelf) {
+			rt.append("You have kicked ");
+		} else {
+			rt.bold();
+			rt.append(user.nick.c_str());
+			rt.endBold();
+			rt.append(" has kicked ");
+		}
+		rt.bold();
+		rt.append(target);
+		rt.endBold();
 	}
 
-	pushMessage(buf);
+	rt.foreground(COL_LEVEL_BASE + 1, COL_DEFAULT_FG);
+	rt.append(" (");
+	rt.appendIRC(message);
+	rt.writeU8(')');
+
+	pushMessage(rt.c_str());
 }
 
 void Channel::handleNick(const UserRef &user, const char *newNick) {
@@ -448,19 +466,24 @@ void Channel::handleNick(const UserRef &user, const char *newNick) {
 	server->bouncer->sendToClients(
 		Packet::B2C_CHANNEL_USER_RENAME, packet);
 
-	char buf[1024];
+	RichTextBuilder rt;
+	rt.foreground(COL_LEVEL_BASE, COL_CHANNEL_NOTICE);
+	rt.append("*** ");
+
 	if (user.isSelf) {
-		snprintf(buf, 1024,
-			"You are now known as %s",
-			newNick);
+		rt.append("You are now known as ");
 	} else {
-		snprintf(buf, 1024,
-			"%s is now known as %s",
-			user.nick.c_str(),
-			newNick);
+		rt.bold();
+		rt.append(user.nick.c_str());
+		rt.endBold();
+		rt.append(" is now known as ");
 	}
 
-	pushMessage(buf);
+	rt.bold();
+	rt.append(newNick);
+	rt.endBold();
+
+	pushMessage(rt.c_str());
 }
 
 void Channel::handleMode(const UserRef &user, const char *str) {
@@ -475,6 +498,8 @@ void Channel::handleMode(const UserRef &user, const char *str) {
 		return;
 
 	bool addFlag = true;
+
+	RichTextBuilder rt;
 
 	while (*modes != 0) {
 		char mode = *(modes++);
@@ -512,15 +537,26 @@ void Channel::handleMode(const UserRef &user, const char *str) {
 					Packet::B2C_CHANNEL_USER_MODES, packet);
 			}
 
-			char buf[1024];
-			snprintf(buf, 1024,
-				"%s %s mode %c on %s%s",
-				user.nick.c_str(),
-				addFlag ? "set" : "cleared",
-				mode,
-				target,
-				oops ? ", but something went wrong!" : "");
-			pushMessage(buf);
+			rt.clear();
+			rt.foreground(COL_LEVEL_BASE, COL_CHANNEL_NOTICE);
+			rt.append("-- ");
+
+			rt.bold();
+			rt.append(user.nick.c_str());
+			rt.endBold();
+
+			rt.append(addFlag ? " set mode " : " cleared mode ");
+			rt.writeS8(mode);
+			rt.append(" on ");
+
+			rt.bold();
+			rt.append(target);
+			rt.endBold();
+
+			if (oops)
+				rt.append(", but something went wrong!");
+
+			pushMessage(rt.c_str());
 
 		} else {
 			int type = server->getChannelModeType(mode);
@@ -539,15 +575,22 @@ void Channel::handleMode(const UserRef &user, const char *str) {
 					break;
 			}
 
-			char buf[1024];
-			snprintf(buf, 1024,
-				"%s %s channel mode %c%s%s",
-				user.nick.c_str(),
-				addFlag ? "set" : "cleared",
-				mode,
-				param ? " " : "",
-				param ? param : "");
-			pushMessage(buf);
+			rt.clear();
+			rt.foreground(COL_LEVEL_BASE, COL_CHANNEL_NOTICE);
+			rt.append("-- ");
+
+			rt.bold();
+			rt.append(user.nick.c_str());
+			rt.endBold();
+
+			rt.append(addFlag ? " set channel mode " : " cleared channel mode ");
+			rt.writeS8(mode);
+			if (param) {
+				rt.writeS8(' ');
+				rt.append(param);
+			}
+
+			pushMessage(rt.c_str());
 		}
 	}
 }
@@ -570,7 +613,9 @@ void Channel::outputUserMessage(const char *nick, const char *str, bool isAction
 	if (prefix != 0)
 		rt.writeS8(prefix);
 
+	rt.bold();
 	rt.append(nick);
+	rt.endBold();
 	rt.append(isAction ? " " : "> ");
 
 	rt.appendIRC(str);
@@ -579,17 +624,23 @@ void Channel::outputUserMessage(const char *nick, const char *str, bool isAction
 }
 
 void Channel::handleCtcp(const UserRef &user, const char *type, const char *params) {
-	char buf[15000];
-
 	if (strcmp(type, "ACTION") == 0) {
 		outputUserMessage(user.nick.c_str(), params, /*isAction=*/true);
 	} else {
-		snprintf(buf, sizeof(buf),
-			"CTCP from %s : %s %s",
-			user.nick.c_str(),
-			type,
-			params);
-		pushMessage(buf, 2);
+		RichTextBuilder rt;
+
+		rt.foreground(COL_LEVEL_BASE, COL_CHANNEL_NOTICE);
+
+		rt.append("*** CTCP from ");
+		rt.bold();
+		rt.append(user.nick.c_str());
+		rt.endBold();
+		rt.append(": ");
+
+		rt.foreground(COL_LEVEL_BASE, COL_DEFAULT_FG);
+		rt.appendIRC(params);
+
+		pushMessage(rt.c_str(), 2);
 	}
 }
 
@@ -600,20 +651,28 @@ void Channel::handleTopic(const UserRef &user, const char *message) {
 	rt.foreground(COL_LEVEL_BASE, COL_CHANNEL_NOTICE);
 
 	if (user.isValid) {
+		rt.append("*** ");
+		rt.bold();
 		rt.append(user.nick.c_str());
+		rt.endBold();
 		rt.append(" changed the topic to: ");
-		rt.appendIRC(message);
 	} else {
-		rt.append("Topic: ");
-		rt.appendIRC(message);
+		rt.append("*** Topic: ");
 	}
+	rt.foreground(COL_LEVEL_BASE, COL_DEFAULT_FG);
+	rt.appendIRC(message);
+
 	pushMessage(rt.c_str());
 
 	topic = message;
 
+	// Send a parsed topic
+	rt.clear();
+	rt.appendIRC(message);
+
 	Buffer packet;
 	packet.writeU32(id);
-	packet.writeStr(message);
+	packet.writeStr(rt.c_str());
 	server->bouncer->sendToClients(
 		Packet::B2C_CHANNEL_TOPIC, packet);
 }
@@ -625,8 +684,10 @@ void Channel::handleTopicInfo(const char *user, int timestamp) {
 	RichTextBuilder rt;
 	rt.foreground(COL_LEVEL_BASE, COL_CHANNEL_NOTICE);
 
-	rt.append("Topic set by ");
+	rt.append("*** Topic set by ");
+	rt.bold();
 	rt.append(user);
+	rt.endBold();
 	rt.append(" at ");
 	rt.append(intConv);
 
@@ -647,7 +708,11 @@ char Channel::getEffectivePrefixChar(const char *nick) const {
 void Channel::disconnected() {
 	if (inChannel) {
 		inChannel = false;
-		pushMessage("You have been disconnected.");
+
+		RichTextBuilder rt;
+		rt.foreground(COL_LEVEL_BASE, COL_QUIT);
+		rt.append("*** You have been disconnected.");
+		pushMessage(rt.c_str());
 	}
 }
 

@@ -113,6 +113,7 @@ public:
 	void handleTopicInfo(const char *user, int timestamp);
 
 	void outputUserMessage(const char *nick, const char *message, bool isAction);
+	void outputUserAction(int colour, const UserRef &user, const char *prefix, const char *verb, const char *message, bool showChannel = true);
 
 	char getEffectivePrefixChar(const char *nick) const;
 
