@@ -537,7 +537,7 @@ class MainWindow(QtWidgets.QMainWindow):
 		global sock
 		try:
 			basesock = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
-			basesock.connect(('localhost', 5454))
+			basesock.connect((hostname, 5454))
 			#sock = ssl.wrap_socket(basesock)
 			sock = basesock
 			thd = threading.Thread(None, reader)
@@ -575,8 +575,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 
-if len(sys.argv) > 1:
-	password = sys.argv[1]
+hostname = sys.argv[1]
+if len(sys.argv) > 2:
+	password = sys.argv[2]
 else:
 	print('No password entered on command line!')
 
