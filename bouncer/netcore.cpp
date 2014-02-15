@@ -331,6 +331,10 @@ void NetCore::loadConfig() {
 	for (auto &section : sections) {
 		if (section.title == "Header") {
 			bouncerPassword = section.data["password"];
+
+			maxWindowMessageCount = atoi(section.data["maxBufferSize"].c_str());
+			if (maxWindowMessageCount < 5 || maxWindowMessageCount > 2000)
+				maxWindowMessageCount = 1000;
 		}
 
 		if (section.title == "Server" && serverCount < SERVER_LIMIT) {
@@ -350,6 +354,10 @@ void NetCore::saveConfig() {
 	header.title = "Header";
 
 	header.data["password"] = bouncerPassword;
+
+	char conv[50];
+	sprintf(conv, "%d", maxWindowMessageCount);
+	header.data["maxWindowMessageCount"] = conv;
 
 	sections.push_back(header);
 

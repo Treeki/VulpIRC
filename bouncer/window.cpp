@@ -31,6 +31,8 @@ void Window::notifyWindowRename() {
 }
 
 void Window::pushMessage(const char *str, int priority) {
+	if (messages.size() >= core->maxWindowMessageCount)
+		messages.pop_front();
 	messages.push_back(str);
 
 	bool createdPacket = false;

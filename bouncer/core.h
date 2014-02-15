@@ -397,6 +397,7 @@ public:
 	bool quitFlag;
 
 	std::string bouncerPassword;
+	int maxWindowMessageCount;
 
 	int execute();
 
