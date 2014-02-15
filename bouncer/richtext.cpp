@@ -177,15 +177,60 @@ const char *RichTextBuilder::c_str() {
 
 
 
+inline static float hslValue(float n1, float n2, float hue) {
+	if (hue > 6.0f)
+		hue -= 6.0f;
+	else if (hue < 0.0f)
+		hue += 6.0f;
+
+	if (hue < 1.0f)
+		return n1 + (n2 - n1) * hue;
+	else if (hue < 3.0f)
+		return n2;
+	else if (hue < 4.0f)
+		return n1 + (n2 - n1) * (4.0f - hue);
+	else
+		return n1;
+}
+
+void calculateHSL(float h, float s, float l, uint8_t *r, uint8_t *g, uint8_t *b) {
+	// make it RGB
+
+	if (s == 0) {
+		*r = *g = *b = l*255.0f;
+	} else {
+		float m1, m2;
+		if (l <= 0.5f)
+			m2 = l * (1.0f + s);
+		else
+			m2 = l + s - l * s;
+
+		m1 = 2.0f * s - m2;
+
+		*r = hslValue(m1, m2, h * 6.0f + 2.0) * 255.0f;
+		*g = hslValue(m1, m2, h * 6.0f) * 255.0f;
+		*b = hslValue(m1, m2, h * 6.0f - 2.0) * 255.0f;
+	}
+}
+
+
+
 void RichTextBuilder::appendNick(const char *nick) {
 	uint32_t hash = 0;
 	const char *c = nick;
 	while (*c)
 		hash = (hash * 17) + *(c++);
 
-	int r = ((hash & 0xFF0000) >> 16);
-	int g = ((hash & 0xFF00) >> 8);
-	int b = (hash & 0xFF);
+	int hueBase = ((hash & 0xFF0000) >> 16);
+	int satBase = ((hash & 0xFF00) >> 8);
+	int lumBase = (hash & 0xFF);
+	uint8_t r, g, b;
+
+	calculateHSL(
+		hueBase / 255.0f,
+		(0.50f + (satBase / 765.0f)),
+		(0.40f + (lumBase / 1020.0f)),
+		&r, &g, &b);
 
 	foreground(COL_LEVEL_NICK, r, g, b);
 	append(nick);

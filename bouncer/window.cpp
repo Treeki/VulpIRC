@@ -172,12 +172,6 @@ void StatusWindow::handleUserInput(const char *str) {
 			else
 				pushMessage("Server password cleared.");
 
-		} else if (strcmp(str, "/c") == 0) {
-			RichTextBuilder rt;
-			rt.foreground(2, 100, 0, 255);
-			rt.append("boooooop");
-			rt.endForeground(2);
-			pushMessage(rt.c_str());
 		}
 	} else {
 		server->sendLine(str);
