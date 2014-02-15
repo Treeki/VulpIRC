@@ -150,10 +150,14 @@ void Client::handlePacket(Packet::Type type, char *data, int size) {
 
 			uint32_t lastReceivedByClient = pkt.readU32();
 
+			char pwBuf[512] = "";
+			pkt.readStr(pwBuf, sizeof(pwBuf));
+			if (strcmp(pwBuf, netCore->bouncerPassword.c_str()) != 0)
+				error = 3;
+
 			if (!pkt.readRemains(SESSION_KEY_SIZE))
 				error = 2;
 
-			// Authentication goes here at some point, too
 
 
 			if (error != 0) {

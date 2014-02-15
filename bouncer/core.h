@@ -396,6 +396,8 @@ public:
 
 	bool quitFlag;
 
+	std::string bouncerPassword;
+
 	int execute();
 
 	Client *findClientWithSessionKey(uint8_t *key) const;

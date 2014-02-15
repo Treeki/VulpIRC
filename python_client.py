@@ -40,6 +40,7 @@ nextID = 1
 lastReceivedPacketID = 0
 packetCache = []
 packetLock = threading.Lock()
+password = ''
 
 u32 = struct.Struct('<I')
 
@@ -552,7 +553,10 @@ class MainWindow(QtWidgets.QMainWindow):
 		authed = False
 
 	def handleLogin(self):
-		writePacket(0x8001, struct.pack('<II 16s', protocolVer, lastReceivedPacketID, sessionKey), True)
+		encPW = password.encode('utf-8')
+		piece1 = struct.pack('<III', protocolVer, lastReceivedPacketID, len(encPW))
+		piece2 = struct.pack('16s', sessionKey)
+		writePacket(0x8001, piece1 + encPW + piece2, True)
 
 	def handleDebug(self, text):
 		with packetLock:
@@ -568,6 +572,12 @@ class MainWindow(QtWidgets.QMainWindow):
 				data = str(text).encode('utf-8')
 				writePacket(0x102, struct.pack('<II', wid, len(data)) + data)
 
+
+
+if len(sys.argv) > 1:
+	password = sys.argv[1]
+else:
+	print('No password entered on command line!')
 
 app = QtWidgets.QApplication(sys.argv)
 

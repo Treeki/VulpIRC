@@ -329,6 +329,10 @@ void NetCore::loadConfig() {
 	auto sections = INI::load("config.ini");
 
 	for (auto &section : sections) {
+		if (section.title == "Header") {
+			bouncerPassword = section.data["password"];
+		}
+
 		if (section.title == "Server" && serverCount < SERVER_LIMIT) {
 			Server *s = constructServer(section.data["type"].c_str());
 			if (s) {
@@ -341,6 +345,13 @@ void NetCore::loadConfig() {
 
 void NetCore::saveConfig() {
 	std::list<INI::Section> sections;
+
+	INI::Section header;
+	header.title = "Header";
+
+	header.data["password"] = bouncerPassword;
+
+	sections.push_back(header);
 
 	for (int i = 0; i < serverCount; i++) {
 		INI::Section section;
