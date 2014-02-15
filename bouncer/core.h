@@ -32,8 +32,6 @@
 #define CLIENT_LIMIT 100
 #define SERVER_LIMIT 20
 
-#define SESSION_KEEPALIVE 30
-
 #define SESSION_KEY_SIZE 16
 
 #define PROTOCOL_VERSION 1
@@ -398,6 +396,7 @@ public:
 
 	std::string bouncerPassword;
 	int maxWindowMessageCount;
+	int sessionKeepalive;
 
 	int execute();
 

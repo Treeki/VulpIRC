@@ -326,15 +326,25 @@ void NetCore::sendToClients(Packet::Type type, const Buffer &data) {
 
 
 void NetCore::loadConfig() {
+	// Make default config
+	int v;
+
+	maxWindowMessageCount = 1000;
+	sessionKeepalive = 600;
+
 	auto sections = INI::load("config.ini");
 
 	for (auto &section : sections) {
 		if (section.title == "Header") {
 			bouncerPassword = section.data["password"];
 
-			maxWindowMessageCount = atoi(section.data["maxBufferSize"].c_str());
-			if (maxWindowMessageCount < 5 || maxWindowMessageCount > 2000)
-				maxWindowMessageCount = 1000;
+			v = atoi(section.data["maxBufferSize"].c_str());
+			if (v >= 5 && v <= 2000)
+				maxWindowMessageCount = v;
+
+			v = atoi(section.data["sessionKeepalive"].c_str());
+			if (v >= 1 && v <= 3600)
+				sessionKeepalive = v;
 		}
 
 		if (section.title == "Server" && serverCount < SERVER_LIMIT) {
@@ -356,8 +366,11 @@ void NetCore::saveConfig() {
 	header.data["password"] = bouncerPassword;
 
 	char conv[50];
+
 	sprintf(conv, "%d", maxWindowMessageCount);
 	header.data["maxWindowMessageCount"] = conv;
+	sprintf(conv, "%d", sessionKeepalive);
+	header.data["sessionKeepalive"] = conv;
 
 	sections.push_back(header);
 

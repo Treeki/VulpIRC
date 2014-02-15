@@ -87,7 +87,7 @@ void Client::close() {
 	SocketRWCommon::close();
 
 	if (authState == AS_AUTHED)
-		deadTime = time(NULL) + SESSION_KEEPALIVE;
+		deadTime = time(NULL) + netCore->sessionKeepalive;
 	else
 		deadTime = time(NULL) - 1; // kill instantly
 }
