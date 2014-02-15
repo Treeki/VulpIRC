@@ -174,3 +174,20 @@ const char *RichTextBuilder::c_str() {
 
 	return data();
 }
+
+
+
+void RichTextBuilder::appendNick(const char *nick) {
+	uint32_t hash = 0;
+	const char *c = nick;
+	while (*c)
+		hash = (hash * 17) + *(c++);
+
+	int r = ((hash & 0xFF0000) >> 16);
+	int g = ((hash & 0xFF00) >> 8);
+	int b = (hash & 0xFF);
+
+	foreground(COL_LEVEL_NICK, r, g, b);
+	append(nick);
+	endForeground(COL_LEVEL_NICK);
+}

@@ -171,6 +171,13 @@ void StatusWindow::handleUserInput(const char *str) {
 				pushMessage("Server password changed.");
 			else
 				pushMessage("Server password cleared.");
+
+		} else if (strcmp(str, "/c") == 0) {
+			RichTextBuilder rt;
+			rt.foreground(2, 100, 0, 255);
+			rt.append("boooooop");
+			rt.endForeground(2);
+			pushMessage(rt.c_str());
 		}
 	} else {
 		server->sendLine(str);
@@ -303,7 +310,7 @@ void Channel::outputUserAction(int colour, const UserRef &user, const char *pref
 		rt.append("You have ");
 	} else {
 		rt.bold();
-		rt.append(user.nick.c_str());
+		rt.appendNick(user.nick.c_str());
 		rt.endBold();
 
 		rt.append(" (");
@@ -428,14 +435,14 @@ void Channel::handleKick(const UserRef &user, const char *target, const char *me
 		inChannel = false;
 
 		rt.append("You have been kicked by ");
-		rt.append(user.nick.c_str());
+		rt.appendNick(user.nick.c_str());
 
 	} else {
 		if (user.isSelf) {
 			rt.append("You have kicked ");
 		} else {
 			rt.bold();
-			rt.append(user.nick.c_str());
+			rt.appendNick(user.nick.c_str());
 			rt.endBold();
 			rt.append(" has kicked ");
 		}
@@ -476,13 +483,13 @@ void Channel::handleNick(const UserRef &user, const char *newNick) {
 		rt.append("You are now known as ");
 	} else {
 		rt.bold();
-		rt.append(user.nick.c_str());
+		rt.appendNick(user.nick.c_str());
 		rt.endBold();
 		rt.append(" is now known as ");
 	}
 
 	rt.bold();
-	rt.append(newNick);
+	rt.appendNick(newNick);
 	rt.endBold();
 
 	pushMessage(rt.c_str());
@@ -544,7 +551,7 @@ void Channel::handleMode(const UserRef &user, const char *str) {
 			rt.append("-- ");
 
 			rt.bold();
-			rt.append(user.nick.c_str());
+			rt.appendNick(user.nick.c_str());
 			rt.endBold();
 
 			rt.append(addFlag ? " set mode " : " cleared mode ");
@@ -582,7 +589,7 @@ void Channel::handleMode(const UserRef &user, const char *str) {
 			rt.append("-- ");
 
 			rt.bold();
-			rt.append(user.nick.c_str());
+			rt.appendNick(user.nick.c_str());
 			rt.endBold();
 
 			rt.append(addFlag ? " set channel mode " : " cleared channel mode ");
@@ -616,7 +623,7 @@ void Channel::outputUserMessage(const char *nick, const char *str, bool isAction
 		rt.writeS8(prefix);
 
 	rt.bold();
-	rt.append(nick);
+	rt.appendNick(nick);
 	rt.endBold();
 	rt.append(isAction ? " " : "> ");
 
@@ -635,7 +642,7 @@ void Channel::handleCtcp(const UserRef &user, const char *type, const char *para
 
 		rt.append("*** CTCP from ");
 		rt.bold();
-		rt.append(user.nick.c_str());
+		rt.appendNick(user.nick.c_str());
 		rt.endBold();
 		rt.append(": ");
 
@@ -655,7 +662,7 @@ void Channel::handleTopic(const UserRef &user, const char *message) {
 	if (user.isValid) {
 		rt.append("*** ");
 		rt.bold();
-		rt.append(user.nick.c_str());
+		rt.appendNick(user.nick.c_str());
 		rt.endBold();
 		rt.append(" changed the topic to: ");
 	} else {

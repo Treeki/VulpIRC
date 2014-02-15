@@ -235,8 +235,9 @@ class WindowTab(QtWidgets.QWidget):
 						col = PRESET_COLOURS[bit1 >> 1]
 						pos += 1
 					elif (pos + 3) < l:
-						bit2 = ord(msg[pos + 2])
-						bit3 = ord(msg[pos + 3])
+						bit1 <<= 1
+						bit2 = ord(msg[pos + 2]) << 1
+						bit3 = ord(msg[pos + 3]) << 1
 						pos += 3
 						col = QtGui.QColor(bit1,bit2,bit3)
 

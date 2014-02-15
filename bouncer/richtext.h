@@ -48,6 +48,11 @@ public:
 
 	void colour(bool background, int layer, int r, int g, int b) {
 		writeU8(0x10 + (background ? 4 : 0) + layer);
+
+		r >>= 1;
+		g >>= 1;
+		b >>= 1;
+
 		writeU8((r==0)?2:(r&254));
 		writeU8((g==0)?1:g);
 		writeU8((b==0)?1:b);
@@ -86,6 +91,7 @@ public:
 	}
 
 	void appendIRC(const char *str);
+	void appendNick(const char *nick);
 
 	const char *c_str();
 };
