@@ -1,0 +1,111 @@
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context=".LoginActivity">
+
+    <!-- Login progress -->
+    <LinearLayout
+		    android:id="@+id/containerLoginStatus"
+                  android:visibility="invisible"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
+        <ProgressBar style="?android:attr/progressBarStyleLarge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"/>
+        <TextView
+            android:id="@+id/loginStatus"
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:fontFamily="sans-serif-light"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:text="---" />
+	    <Button
+			    android:id="@+id/buttonCancel"
+			    android:text="Cancel"
+			    android:layout_width="wrap_content"
+			    android:layout_height="wrap_content"/>
+    </LinearLayout>
+
+    <!-- Login form -->
+    <ScrollView
+        android:id="@+id/containerLoginForm"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="invisible"
+		    android:padding="12dp">
+
+        <RelativeLayout
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <EditText
+                android:id="@+id/inputUsername"
+                android:singleLine="true"
+                android:maxLines="1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="textNoSuggestions"
+                android:hint="Username" />
+
+            <EditText
+                android:id="@+id/inputPassword"
+                android:layout_below="@id/inputUsername"
+                android:layout_marginBottom="12dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:singleLine="true"
+                android:maxLines="1"
+                android:fontFamily="sans-serif"
+                android:hint="Password"
+                android:inputType="textPassword" />
+
+	        <EditText
+			        android:id="@+id/inputPort"
+			        android:layout_below="@id/inputPassword"
+			        android:layout_alignParentRight="true"
+			        android:layout_width="120dp"
+			        android:layout_height="wrap_content"
+			        android:singleLine="true"
+			        android:maxLines="1"
+			        android:hint="Port"
+			        android:inputType="number"/>
+
+	        <EditText
+			        android:id="@+id/inputHostname"
+			        android:layout_below="@id/inputPassword"
+			        android:layout_toLeftOf="@id/inputPort"
+			        android:layout_alignParentLeft="true"
+			        android:layout_width="match_parent"
+			        android:layout_height="wrap_content"
+			        android:singleLine="true"
+			        android:maxLines="1"
+			        android:hint="Server address"
+			        android:inputType=""/>
+
+	        <CheckBox
+			        android:id="@+id/checkUseTls"
+			        android:layout_below="@id/inputHostname"
+			        android:layout_marginBottom="12dp"
+			        android:layout_width="wrap_content"
+			        android:layout_height="wrap_content"
+	                android:text="Use secured connection (SSL/TLS)"
+			        />
+
+	        <Button android:id="@+id/buttonConnect"
+	                android:layout_below="@id/checkUseTls"
+	                android:layout_alignParentRight="true"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Connect"
+                android:paddingLeft="32dp"
+                android:paddingRight="32dp" />
+
+        </RelativeLayout>
+
+    </ScrollView>
+</merge>

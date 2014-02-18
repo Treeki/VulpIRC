@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="net.brokenfox.vulpirc"
+    android:versionCode="1"
+    android:versionName="1.0" >
+
+    <uses-sdk
+        android:minSdkVersion="14"
+        android:targetSdkVersion="19" />
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@drawable/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/AppTheme" >
+        <activity
+            android:name=".MainActivity"
+            android:launchMode="singleTask"
+            android:label="@string/app_name" >
+        </activity>
+
+        <service android:name="net.brokenfox.vulpirc.IRCService" />
+
+        <activity
+            android:name="net.brokenfox.vulpirc.LoginActivity"
+            android:launchMode="singleTask"
+            android:label="VulpIRC"
+            android:windowSoftInputMode="adjustResize|stateVisible" >
+
+	        <intent-filter>
+		        <action android:name="android.intent.action.MAIN" />
+
+		        <category android:name="android.intent.category.LAUNCHER" />
+		        <category android:name="android.intent.category.MULTIWINDOW_LAUNCHER" />
+	        </intent-filter>
+        </activity>
+
+	    <uses-library
+			    android:required="false"
+			    android:name="com.sec.android.app.multiwindow">
+			    </uses-library>
+	    <meta-data android:name="com.sec.android.support.multiwindow" android:value="true" />
+	    <meta-data android:name="com.sec.android.multiwindow.DEFAULT_SIZE_W" android:resource="@dimen/app_defaultsize_w" />
+		<meta-data android:name="com.sec.android.multiwindow.DEFAULT_SIZE_H" android:resource="@dimen/app_defaultsize_h" />
+		<meta-data android:name="com.sec.android.multiwindow.MINIMUM_SIZE_W" android:resource="@dimen/app_minimumsize_w" />
+		<meta-data android:name="com.sec.android.multiwindow.MINIMUM_SIZE_H" android:resource="@dimen/app_minimumsize_h" />
+    </application>
+
+</manifest>
