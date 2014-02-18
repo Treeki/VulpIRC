@@ -16,6 +16,9 @@ It's currently functional for basic usage, though it's lacking lots of
 features and needs tons of polish. With any luck, eventually it will grow to
 become a full (and hopefully awesome) client ;)
 
+More info in the introduction blog post:
+http://blog.brokenfox.net/post/77022394144/introducing-vulpirc
+
 This code is placed under the MIT License - see the `LICENSE` file for more
 details.
 
