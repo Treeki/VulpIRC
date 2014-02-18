@@ -4,10 +4,7 @@ import android.util.Log;
 
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
-import java.nio.charset.CharacterCodingException;
-import java.nio.charset.Charset;
-import java.nio.charset.CharsetDecoder;
-import java.nio.charset.CharsetEncoder;
+import java.nio.charset.*;
 
 /**
  * Created by ninji on 2/3/14.
@@ -18,8 +15,10 @@ public class Util {
 	private static CharsetEncoder mUTF8Encoder = null;
 
 	public static synchronized String readStringFromBuffer(ByteBuffer p) {
-		if (mUTF8Decoder == null)
+		if (mUTF8Decoder == null) {
 			mUTF8Decoder = Charset.forName("UTF-8").newDecoder();
+			mUTF8Decoder.onMalformedInput(CodingErrorAction.REPLACE);
+		}
 
 		int size = p.getInt();
 		if (size <= 0)
