@@ -39,7 +39,7 @@ void MobileClient::packetReceivedEvent(Packet::Type type, Buffer &pkt) {
 		char text[8192];
 		pkt.readStr(text, sizeof(text));
 
-		window->handleUserInput(text);
+		window->handleRawUserInput(text);
 
 	} else if (type == Packet::C2B_WINDOW_CLOSE) {
 		int winID = pkt.readU32();

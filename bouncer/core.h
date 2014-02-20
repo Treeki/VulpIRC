@@ -64,29 +64,39 @@ public:
 	virtual const char *getTitle() const = 0;
 	virtual int getType() const = 0;
 	virtual void syncStateForClient(Buffer &output);
-	virtual void handleUserInput(const char *str) { }
+	void handleRawUserInput(const char *str);
 	virtual void handleUserClosed();
 
 	void pushMessage(const char *str, int priority = 0);
 	void notifyWindowRename();
+
+protected:
+	virtual void handleCommand(const char *cmd, const char *args) { }
+	virtual void handleUserInput(const char *str) { }
 };
 
-class StatusWindow : public Window {
+class IRCWindow : public Window {
+public:
+	IRCWindow(IRCServer *_server);
+
+	IRCServer *server;
+};
+
+class StatusWindow : public IRCWindow {
 public:
 	StatusWindow(IRCServer *_server);
 
-	IRCServer *server;
-
 	virtual const char *getTitle() const;
 	virtual int getType() const;
+
+protected:
+	virtual void handleCommand(const char *cmd, const char *args);
 	virtual void handleUserInput(const char *str);
 };
 
-class Channel : public Window {
+class Channel : public IRCWindow {
 public:
 	Channel(IRCServer *_server, const char *_name);
-
-	IRCServer *server;
 
 	bool inChannel;
 
@@ -95,7 +105,6 @@ public:
 
 	virtual const char *getTitle() const;
 	virtual int getType() const;
-	virtual void handleUserInput(const char *str);
 	virtual void syncStateForClient(Buffer &output);
 
 	void handleNameReply(const char *str);
@@ -116,18 +125,20 @@ public:
 	char getEffectivePrefixChar(const char *nick) const;
 
 	void disconnected();
+
+protected:
+	virtual void handleCommand(const char *cmd, const char *args);
+	virtual void handleUserInput(const char *str);
 };
 
-class Query : public Window {
+class Query : public IRCWindow {
 public:
 	Query(IRCServer *_server, const char *_partner);
 
-	IRCServer *server;
 	std::string partner;
 
 	virtual const char *getTitle() const;
 	virtual int getType() const;
-	virtual void handleUserInput(const char *str);
 	virtual void handleUserClosed();
 
 	void handleQuit(const char *message);
@@ -136,6 +147,10 @@ public:
 
 	void showNickChange(const UserRef &user, const char *newNick);
 	void renamePartner(const char *_partner);
+
+protected:
+	virtual void handleCommand(const char *cmd, const char *args);
+	virtual void handleUserInput(const char *str);
 };
 
 

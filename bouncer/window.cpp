@@ -56,12 +56,40 @@ void Window::handleUserClosed() {
 	// Do nothing. (For now?)
 }
 
+void Window::handleRawUserInput(const char *str) {
+	if (str[0] == 0)
+		return;
+
+	if (str[0] == '/') {
+		const char *space = strchr(str, ' ');
+
+		if (space != NULL) {
+			int i;
+			char cmd[200];
+
+			for (i = 0; (i < 199) && (str[i+1] != ' '); i++)
+				cmd[i] = str[i+1];
+			cmd[i] = 0;
+
+			handleCommand(cmd, space+1);
+		} else {
+			handleCommand(&str[1], "");
+		}
+	} else {
+		handleUserInput(str);
+	}
+}
 
 
-
-StatusWindow::StatusWindow(IRCServer *_server) :
+IRCWindow::IRCWindow(IRCServer *_server) :
 	Window(_server->bouncer),
 	server(_server)
+{
+}
+
+
+
+StatusWindow::StatusWindow(IRCServer *_server) : IRCWindow(_server)
 {
 }
 
@@ -76,114 +104,106 @@ int StatusWindow::getType() const {
 	return 1;
 }
 
-void StatusWindow::handleUserInput(const char *str) {
+void StatusWindow::handleCommand(const char *cmd, const char *args) {
 	char buf[1024];
 
-	if (str[0] == '/') {
-		// moof
-		if (strcmp(str, "/connect") == 0) {
-
-			// Check if we have everything needed...
-			if (server->config.nickname.size() == 0) {
-				pushMessage("Use /defaultnick <name> to set a nickname");
-			} else if (server->config.altNick.size() == 0) {
-				pushMessage("Use /altnick <name> to set an alternate nickname");
-			} else if (server->config.hostname.size() == 0) {
-				pushMessage("Use /server <name> to set an IRC server to connect to");
-			} else {
-				server->connect();
-			}
-
-		} else if (strcmp(str, "/disconnect") == 0) {
-			server->close();
-
-		} else if (strncmp(str, "/defaultnick ", 13) == 0) {
-			server->config.nickname = &str[13];
-
-			// generate a default altnick if we don't have one already
-			if (server->config.altNick.size() == 0) {
-				server->config.altNick = server->config.nickname + "_";
-			}
-
-			snprintf(buf, sizeof(buf),
-				"Default nickname changed to: %s",
-				server->config.nickname.c_str());
-			pushMessage(buf);
-
-		} else if (strncmp(str, "/altnick ", 9) == 0) {
-			server->config.altNick = &str[9];
-
-			snprintf(buf, sizeof(buf),
-				"Alternate nickname changed to: %s",
-				server->config.altNick.c_str());
-			pushMessage(buf);
-
-		} else if (strncmp(str, "/server ", 8) == 0) {
-			server->config.hostname = &str[8];
-
-			snprintf(buf, sizeof(buf),
-				"Server address changed to: %s",
-				server->config.hostname.c_str());
-			pushMessage(buf);
-
-			notifyWindowRename();
-
-		} else if (strncmp(str, "/port ", 6) == 0) {
-			const char *p = &str[6];
-			if (*p == '+') {
-				server->config.useTls = true;
-				++p;
-			} else {
-				server->config.useTls = false;
-			}
-			server->config.port = atoi(p);
-
-			snprintf(buf, sizeof(buf),
-				"Server port changed to %d, TLS %s",
-				server->config.port,
-				server->config.useTls ? "on" : "off");
-			pushMessage(buf);
-
-		} else if (strncmp(str, "/username ", 10) == 0) {
-			server->config.username = &str[10];
-
-			snprintf(buf, sizeof(buf),
-				"Username changed to: %s",
-				server->config.username.c_str());
-			pushMessage(buf);
-
-		} else if (strncmp(str, "/realname ", 10) == 0) {
-			server->config.realname = &str[10];
-
-			snprintf(buf, sizeof(buf),
-				"Real name changed to: %s",
-				server->config.username.c_str());
-			pushMessage(buf);
-
-		} else if (strncmp(str, "/password", 9) == 0) {
-
-			if (strlen(str) == 9)
-				server->config.password = "";
-			else
-				server->config.password = &str[10];
-
-			if (server->config.password.size() > 0)
-				pushMessage("Server password changed.");
-			else
-				pushMessage("Server password cleared.");
-
+	if (strcmp(cmd, "connect") == 0) {
+		// Check if we have everything needed...
+		if (server->config.nickname.size() == 0) {
+			pushMessage("Use /defaultnick <name> to set a nickname");
+		} else if (server->config.altNick.size() == 0) {
+			pushMessage("Use /altnick <name> to set an alternate nickname");
+		} else if (server->config.hostname.size() == 0) {
+			pushMessage("Use /server <name> to set an IRC server to connect to");
+		} else {
+			server->connect();
 		}
-	} else {
-		server->sendLine(str);
+
+	} else if (strcmp(cmd, "disconnect") == 0) {
+		server->close();
+
+	} else if (strcmp(cmd, "defaultnick") == 0) {
+		server->config.nickname = args;
+
+		// generate a default altnick if we don't have one already
+		if (server->config.altNick.size() == 0) {
+			server->config.altNick = server->config.nickname + "_";
+		}
+
+		snprintf(buf, sizeof(buf),
+			"Default nickname changed to: %s",
+			server->config.nickname.c_str());
+		pushMessage(buf);
+
+	} else if (strcmp(cmd, "altnick") == 0) {
+		server->config.altNick = args;
+
+		snprintf(buf, sizeof(buf),
+			"Alternate nickname changed to: %s",
+			server->config.altNick.c_str());
+		pushMessage(buf);
+
+	} else if (strcmp(cmd, "server") == 0) {
+		server->config.hostname = args;
+
+		snprintf(buf, sizeof(buf),
+			"Server address changed to: %s",
+			server->config.hostname.c_str());
+		pushMessage(buf);
+
+		notifyWindowRename();
+
+	} else if (strcmp(cmd, "port") == 0) {
+		if (args[0] == '+') {
+			server->config.useTls = true;
+			server->config.port = atoi(&args[1]);
+		} else {
+			server->config.useTls = false;
+			server->config.port = atoi(args);
+		}
+
+		snprintf(buf, sizeof(buf),
+			"Server port changed to %d, TLS %s",
+			server->config.port,
+			server->config.useTls ? "on" : "off");
+		pushMessage(buf);
+
+	} else if (strcmp(cmd, "username") == 0) {
+		server->config.username = args;
+
+		snprintf(buf, sizeof(buf),
+			"Username changed to: %s",
+			server->config.username.c_str());
+		pushMessage(buf);
+
+	} else if (strcmp(cmd, "realname") == 0) {
+		server->config.realname = args;
+
+		snprintf(buf, sizeof(buf),
+			"Real name changed to: %s",
+			server->config.username.c_str());
+		pushMessage(buf);
+
+	} else if (strcmp(cmd, "password") == 0) {
+		server->config.password = args;
+
+		if (server->config.password.size() > 0)
+			pushMessage("Server password changed.");
+		else
+			pushMessage("Server password cleared.");
+
 	}
+}
+
+void StatusWindow::handleUserInput(const char *str) {
+	server->sendLine(str);
 }
 
 
 
 
 Channel::Channel(IRCServer *_server, const char *_name) :
-	Window(_server->bouncer),
-	server(_server),
+	IRCWindow(_server),
 	inChannel(false),
 	name(_name)
 {
@@ -198,28 +218,34 @@ int Channel::getType() const {
 	return 2;
 }
 
-void Channel::handleUserInput(const char *str) {
+void Channel::handleCommand(const char *cmd, const char *args) {
 	char msgBuf[16384];
 
-	if (str[0] == '/') {
-		if (strncmp(str, "/me ", 4) == 0) {
-			outputUserMessage(server->currentNick, &str[4], /*isAction=*/true);
+	if (strcmp(cmd, "me") == 0) {
+		if (args[0] != 0) {
+			outputUserMessage(server->currentNick, args, /*isAction=*/true);
 
 			snprintf(msgBuf, sizeof(msgBuf),
 				"PRIVMSG %s :\x01" "ACTION %s\x01",
 				name.c_str(),
-				&str[4]);
+				args);
 			server->sendLine(msgBuf);
 		}
-	} else if (str[0] != 0) {
-		outputUserMessage(server->currentNick, str, /*isAction=*/false);
-
-		snprintf(msgBuf, sizeof(msgBuf),
-			"PRIVMSG %s :%s",
-			name.c_str(),
-			str);
-		server->sendLine(msgBuf);
+	} else {
+		IRCWindow::handleCommand(cmd, args);
 	}
+}
+
+void Channel::handleUserInput(const char *str) {
+	char msgBuf[16384];
+
+	outputUserMessage(server->currentNick, str, /*isAction=*/false);
+
+	snprintf(msgBuf, sizeof(msgBuf),
+		"PRIVMSG %s :%s",
+		name.c_str(),
+		str);
+	server->sendLine(msgBuf);
 }
 
 void Channel::syncStateForClient(Buffer &output) {
@@ -725,8 +751,7 @@ void Channel::disconnected() {
 
 
 Query::Query(IRCServer *_server, const char *_partner) :
-	Window(_server->bouncer),
-	server(_server),
+	IRCWindow(_server),
 	partner(_partner)
 {
 	server->bouncer->registerWindow(this);
@@ -745,42 +770,48 @@ void Query::handleUserClosed() {
 	server->deleteQuery(this);
 }
 
-void Query::handleUserInput(const char *str) {
+void Query::handleCommand(const char *cmd, const char *args) {
 	char msgBuf[16384];
 
-	if (str[0] == '/') {
-		if (strncmp(str, "/me ", 4) == 0) {
+	if (strcmp(cmd, "me") == 0) {
+		if (args[0] != 0) {
 			// The duplication of code between here and
 			// handlePrivmsg is ugly. TODO: fixme.
 
 			snprintf(msgBuf, sizeof(msgBuf),
 				"* %s %s",
 				server->currentNick,
-				&str[4]);
+				args);
 			pushMessage(msgBuf);
 
 			snprintf(msgBuf, sizeof(msgBuf),
 				"PRIVMSG %s :\x01" "ACTION %s\x01",
 				partner.c_str(),
-				&str[4]);
+				args);
 			server->sendLine(msgBuf);
 		}
-	} else if (str[0] != 0) {
-		// Aaaand this is also pretty ugly ><;;
-		// TODO: fixme.
-
-		snprintf(msgBuf, sizeof(msgBuf),
-			"<%s> %s",
-			server->currentNick,
-			str);
-		pushMessage(msgBuf);
-
-		snprintf(msgBuf, sizeof(msgBuf),
-			"PRIVMSG %s :%s",
-			partner.c_str(),
-			str);
-		server->sendLine(msgBuf);
+	} else {
+		IRCWindow::handleCommand(cmd, args);
 	}
+}
+
+void Query::handleUserInput(const char *str) {
+	char msgBuf[16384];
+
+	// Aaaand this is also pretty ugly ><;;
+	// TODO: fixme.
+
+	snprintf(msgBuf, sizeof(msgBuf),
+		"<%s> %s",
+		server->currentNick,
+		str);
+	pushMessage(msgBuf);
+
+	snprintf(msgBuf, sizeof(msgBuf),
+		"PRIVMSG %s :%s",
+		partner.c_str(),
+		str);
+	server->sendLine(msgBuf);
 }
 
 void Query::handleQuit(const char *message) {
