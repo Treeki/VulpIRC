@@ -211,7 +211,7 @@ void Channel::handleUserInput(const char *str) {
 				&str[4]);
 			server->sendLine(msgBuf);
 		}
-	} else {
+	} else if (str[0] != 0) {
 		outputUserMessage(server->currentNick, str, /*isAction=*/false);
 
 		snprintf(msgBuf, sizeof(msgBuf),
@@ -765,7 +765,7 @@ void Query::handleUserInput(const char *str) {
 				&str[4]);
 			server->sendLine(msgBuf);
 		}
-	} else {
+	} else if (str[0] != 0) {
 		// Aaaand this is also pretty ugly ><;;
 		// TODO: fixme.
 
