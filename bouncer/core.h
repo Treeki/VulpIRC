@@ -2,7 +2,7 @@
 #define CORE_H 
 
 // CTCP version reply
-#define VULPIRC_VERSION_STRING "VulpIRC 0.0.0"
+#define VULPIRC_VERSION_STRING "VulpIRC 0.0.1"
 
 // Set in build.sh
 //#define USE_GNUTLS
@@ -317,6 +317,7 @@ private:
 	virtual void packetReceivedEvent(Packet::Type type, Buffer &pkt);
 
 	void handleDebugCommand(char *line, int size);
+	void sendDebugMessage(const char *msg);
 };
 
 class Server : private SocketRWCommon {
