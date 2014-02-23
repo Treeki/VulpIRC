@@ -382,6 +382,9 @@ public:
 	char serverPrefix[32], serverPrefixMode[32];
 	std::string serverChannelModes[4];
 
+	// This really should go somewhere else
+	static void ircStringToLowercase(const char *in, char *out, int outSize);
+
 	uint32_t getUserFlag(char search, const char *array) const;
 	uint32_t getUserFlagByPrefix(char prefix) const;
 	uint32_t getUserFlagByMode(char mode) const;

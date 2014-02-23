@@ -1,5 +1,31 @@
 #include "core.h"
 
+/*static*/ void IRCServer::ircStringToLowercase(const char *in, char *out, int outSize) {
+	int i = 0;
+
+	while ((in[i] != 0) && (i < (outSize - 1))) {
+		char c = in[i];
+
+		if ((c >= 'A') && (c <= 'Z'))
+			c += ('a' - 'A');
+		else if (c == '[')
+			c = '{';
+		else if (c == ']')
+			c = '}';
+		else if (c == '\\')
+			c = '|';
+		else if (c == '~')
+			c = '^';
+
+		out[i] = c;
+		++i;
+	}
+
+	out[i] = 0;
+}
+
+
+
 IRCServer::IRCServer(Bouncer *_bouncer) :
 	Server(_bouncer),
 	bouncer(_bouncer),
@@ -42,13 +68,16 @@ void IRCServer::resetIRCState() {
 
 
 Channel *IRCServer::findChannel(const char *name, bool createIfNeeded) {
+	char lowerName[512];
+	ircStringToLowercase(name, lowerName, sizeof(lowerName));
+
 	std::map<std::string, Channel *>::iterator
-		check = channels.find(name);
+		check = channels.find(lowerName);
 
 	if (check == channels.end()) {
 		if (createIfNeeded) {
 			Channel *c = new Channel(this, name);
-			channels[name] = c;
+			channels[lowerName] = c;
 			return c;
 		} else {
 			return 0;
@@ -58,13 +87,16 @@ Channel *IRCServer::findChannel(const char *name, bool createIfNeeded) {
 	}
 }
 Query *IRCServer::findQuery(const char *name, bool createIfNeeded) {
+	char lowerName[512];
+	ircStringToLowercase(name, lowerName, sizeof(lowerName));
+
 	std::map<std::string, Query *>::iterator
-		check = queries.find(name);
+		check = queries.find(lowerName);
 
 	if (check == queries.end()) {
 		if (createIfNeeded) {
 			Query *q = new Query(this, name);
-			queries[name] = q;
+			queries[lowerName] = q;
 			return q;
 		} else {
 			return 0;
@@ -293,14 +325,29 @@ void IRCServer::lineReceivedEvent(char *line, int size) {
 				// If we already have one with the destination
 				// nick, we shouldn't replace it..
 				// ...but we should still show a notification there.
-				if (!user.isSelf)
+				// Unless check and q are the same, which can happen
+				// if a user changes their nick's case. 
+				if ((!user.isSelf) && (check != q))
 					check->showNickChange(user, allParams);
+
+				// And if the name's case changed, we need to update
+				// the title to match!
+				if (check->partner != allParams)
+					check->renamePartner(allParams);
+
 			} else {
 				// We didn't have one, so it's safe to move!
-				auto iter = queries.find(user.nick);
+				char lowerName[512];
+
+				// First, remove the old entry..
+				ircStringToLowercase(user.nick.c_str(), lowerName, sizeof(lowerName));
+
+				auto iter = queries.find(lowerName);
 				queries.erase(iter);
 
-				queries[allParams] = q;
+				// ...and then add a new one
+				ircStringToLowercase(allParams, lowerName, sizeof(lowerName));
+				queries[lowerName] = q;
 
 				q->renamePartner(allParams);
 			}
