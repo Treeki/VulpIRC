@@ -80,6 +80,26 @@ public:
 	IRCWindow(IRCServer *_server);
 
 	IRCServer *server;
+
+protected:
+	virtual void handleCommand(const char *cmd, const char *args);
+
+	virtual const char *getChannelName() const { return NULL; }
+	virtual const char *getQueryPartner() const { return NULL; }
+
+	void commandJoin(const char *args);
+	void commandPart(const char *args);
+	void commandQuit(const char *args);
+	void commandTopic(const char *args);
+	void commandMode(const char *args);
+	void commandKick(const char *args);
+	void commandQuery(const char *args);
+
+	struct CommandRef {
+		char cmd[16];
+		void (IRCWindow::*func)(const char *args);
+	};
+	static CommandRef commands[];
 };
 
 class StatusWindow : public IRCWindow {
@@ -129,6 +149,10 @@ public:
 protected:
 	virtual void handleCommand(const char *cmd, const char *args);
 	virtual void handleUserInput(const char *str);
+
+	virtual const char *getChannelName() const {
+		return name.c_str();
+	}
 };
 
 class Query : public IRCWindow {
@@ -151,6 +175,10 @@ public:
 protected:
 	virtual void handleCommand(const char *cmd, const char *args);
 	virtual void handleUserInput(const char *str);
+
+	virtual const char *getQueryPartner() const {
+		return partner.c_str();
+	}
 };
 
 
@@ -381,6 +409,7 @@ private:
 	Query *findQuery(const char *name, bool createIfNeeded);
 
 public:
+	Query *createQuery(const char *name);
 	// This probably *shouldn't* be public... ><
 	void deleteQuery(Query *query);
 

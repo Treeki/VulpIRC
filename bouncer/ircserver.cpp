@@ -74,6 +74,10 @@ Query *IRCServer::findQuery(const char *name, bool createIfNeeded) {
 	}
 }
 
+Query *IRCServer::createQuery(const char *name) {
+	return findQuery(name, true);
+}
+
 void IRCServer::deleteQuery(Query *query) {
 	auto i = queries.find(query->partner);
 	if (i != queries.end()) {
