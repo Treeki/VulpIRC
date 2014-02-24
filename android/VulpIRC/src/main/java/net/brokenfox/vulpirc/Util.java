@@ -3,8 +3,11 @@ package net.brokenfox.vulpirc;
 import android.util.Log;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.CharBuffer;
 import java.nio.charset.*;
+import java.util.zip.DataFormatException;
+import java.util.zip.Inflater;
 
 /**
  * Created by ninji on 2/3/14.
@@ -56,6 +59,36 @@ public class Util {
 
 			return new byte[0];
 		}
+	}
+
+
+	public static byte[] decompress(byte[] input) {
+		ByteBuffer p = ByteBuffer.wrap(input);
+		p.order(ByteOrder.LITTLE_ENDIAN);
+
+		int decompSize = p.getInt();
+		int compSize = p.getInt();
+
+		Inflater inf = new Inflater();
+		inf.setInput(input, 8, compSize);
+		byte[] output = new byte[decompSize];
+
+		try {
+			int result = inf.inflate(output);
+			if (result != decompSize) {
+				Log.e("VulpIRC", "Util.decompress did not succeed: expected " + decompSize + " bytes, decompressed " + result);
+				inf.end();
+				return new byte[0];
+			}
+		} catch (DataFormatException e) {
+			Log.e("VulpIRC", "Util.decompress caught data format exception:");
+			Log.e("VulpIRC", e.toString());
+			inf.end();
+			return new byte[0];
+		}
+
+		inf.end();
+		return output;
 	}
 
 }

@@ -1,6 +1,10 @@
 #include "core.h"
 #include "richtext.h"
 
+#ifdef USE_ZLIB
+#include "zlibwrapper.h"
+#endif
+
 MobileClient::MobileClient(Bouncer *_bouncer) : Client(_bouncer) {
 	bouncer = _bouncer;
 }
@@ -40,6 +44,10 @@ void MobileClient::sessionStartEvent() {
 	for (; i != e; ++i)
 		(*i)->syncStateForClient(syncPacket);
 
+#ifdef USE_ZLIB
+	Buffer deflatedSync;
+	bool didCompress = ZlibWrapper::compress(syncPacket, deflatedSync);
+#endif
 
 	// Send info about the sync
 	snprintf(tmp, sizeof(tmp),
@@ -47,16 +55,32 @@ void MobileClient::sessionStartEvent() {
 		bouncer->windows.size(),
 		(bouncer->windows.size() == 1) ? "" : "s",
 		syncPacket.size(),
-		(syncPacket.size() == 1) ? "" : "s"),
+		(syncPacket.size() == 1) ? "" : "s");
 
 	rt.clear();
 	rt.foreground(COL_LEVEL_BASE, COL_CHANNEL_NOTICE);
 	rt.append(tmp);
 
+#ifdef USE_ZLIB
+	if (didCompress) {
+		snprintf(tmp, sizeof(tmp),
+			" (compressed to %d byte%s)",
+			deflatedSync.size(),
+			(deflatedSync.size() == 1) ? "" : "s");
+		rt.append(tmp);
+	} else {
+		rt.append(" (not compressed due to an error)");
+	}
+#endif
+
 	sendDebugMessage(rt.c_str());
 
 	// and finally, send the sync data over
+#ifdef USE_ZLIB
+	sendPacket(Packet::B2C_WINDOW_ADD_COMPRESSED, deflatedSync);
+#else
 	sendPacket(Packet::B2C_WINDOW_ADD, syncPacket);
+#endif
 
 	rt.clear();
 	rt.foreground(COL_LEVEL_BASE, COL_CHANNEL_NOTICE);

@@ -2,7 +2,7 @@
 # It's just something I've put together to test the server
 # before I write a *real* client.
 
-import sys, socket, ssl, threading, struct, time
+import sys, socket, ssl, threading, struct, time, zlib
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 PRESET_COLOURS = [
@@ -452,7 +452,9 @@ class MainWindow(QtWidgets.QMainWindow):
 				strlen = u32.unpack_from(pdata, 0)[0]
 				msg = pdata[4:4+strlen].decode('utf-8', 'replace')
 				self.debugTab.pushMessage(msg, 0)
-			elif ptype == 0x100:
+			elif ptype == 0x100 or ptype == 0x104:
+				if ptype == 0x104:
+					pdata = zlib.decompress(pdata[8:])
 				# ADD WINDOWS
 				wndCount = u32.unpack_from(pdata, 0)[0]
 				pos = 4

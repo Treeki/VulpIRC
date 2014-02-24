@@ -6,6 +6,7 @@
 
 // Set in build.sh
 //#define USE_GNUTLS
+#define USE_ZLIB
 
 #include <string.h>
 #include <stdint.h>
@@ -249,6 +250,7 @@ struct Packet {
 		B2C_WINDOW_REMOVE = 0x101,
 		B2C_WINDOW_MESSAGE = 0x102,
 		B2C_WINDOW_RENAME = 0x103,
+		B2C_WINDOW_ADD_COMPRESSED = 0x104,
 
 		C2B_WINDOW_CLOSE = 0x101,
 		C2B_WINDOW_INPUT = 0x102,

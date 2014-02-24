@@ -114,6 +114,9 @@ public class Connection implements BaseConn.BaseConnListener {
 	public void handlePacketReceived(int type, byte[] data) {
 		//statusWindow.pushMessage("Packet received! " + type + " " + data.length);
 
+		if (type == 0x104)
+			data = Util.decompress(data);
+
 		ByteBuffer p = ByteBuffer.wrap(data);
 		p.order(ByteOrder.LITTLE_ENDIAN);
 
@@ -121,7 +124,7 @@ public class Connection implements BaseConn.BaseConnListener {
 
 			statusWindow.pushMessage(Util.readStringFromBuffer(p));
 
-		} else if (type == 0x100) {
+		} else if (type == 0x100 || type == 0x104) {
 			// Add windows!
 			int windowCount = p.getInt();
 			if (windowCount <= 0)
