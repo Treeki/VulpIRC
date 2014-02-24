@@ -12,12 +12,13 @@ void Window::syncStateForClient(Buffer &output) {
 
 	output.writeU32(messages.size());
 
-	std::list<std::string>::iterator
+	std::list<Message>::iterator
 		i = messages.begin(),
 		e = messages.end();
 
 	for (; i != e; ++i) {
-		output.writeStr(i->c_str());
+		output.writeU32(i->time);
+		output.writeStr(i->text.c_str());
 	}
 }
 
@@ -33,16 +34,27 @@ void Window::notifyWindowRename() {
 void Window::pushMessage(const char *str, int priority) {
 	if (messages.size() >= core->maxWindowMessageCount)
 		messages.pop_front();
-	messages.push_back(str);
+
+	timespec t;
+	clock_gettime(CLOCK_REALTIME, &t);
+
+	Message m;
+	m.time = t.tv_sec;
+	m.text = str;
+	messages.push_back(m);
 
 	bool createdPacket = false;
+	int ackPosition = 0;
 	Buffer packet;
 
 	for (int i = 0; i < core->clientCount; i++) {
 		if (core->clients[i]->isAuthed()) {
 			if (!createdPacket) {
 				packet.writeU32(id);
+				packet.writeU32(m.time);
 				packet.writeU8(priority);
+				ackPosition = packet.size();
+				packet.writeU8(0); // ACK response ID
 				packet.writeStr(str);
 				createdPacket = true;
 			}
@@ -56,7 +68,7 @@ void Window::handleUserClosed() {
 	// Do nothing. (For now?)
 }
 
-void Window::handleRawUserInput(const char *str) {
+void Window::handleRawUserInput(const char *str, Client *sender, int ackID) {
 	if (str[0] == 0)
 		return;
 

@@ -85,10 +85,12 @@ void MobileClient::packetReceivedEvent(Packet::Type type, Buffer &pkt) {
 			return;
 		}
 
+		int ackID = pkt.readU8();
+
 		char text[8192];
 		pkt.readStr(text, sizeof(text));
 
-		window->handleRawUserInput(text);
+		window->handleRawUserInput(text, this, ackID);
 
 	} else if (type == Packet::C2B_WINDOW_CLOSE) {
 		int winID = pkt.readU32();

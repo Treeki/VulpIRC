@@ -3,6 +3,7 @@ package net.brokenfox.vulpirc;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.Date;
 
 /**
  * Created by ninji on 1/30/14.
@@ -168,12 +169,14 @@ public class Connection implements BaseConn.BaseConnListener {
 		} else if (type == 0x102) {
 			// Add message to window
 			int windowID = p.getInt();
+			int timestamp = p.getInt();
 			byte priority = p.get();
+			byte ack = p.get();
 			String message = Util.readStringFromBuffer(p);
 
 			WindowData w = findWindowByID(windowID);
 			if (w != null) {
-				w.pushMessage(message);
+				w.pushMessage(message, new Date((long)timestamp * 1000), ack);
 
 				if (priority > w.unreadLevel && w != mActiveWindow)
 					w.setUnreadLevel(priority);

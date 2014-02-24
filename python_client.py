@@ -2,7 +2,7 @@
 # It's just something I've put together to test the server
 # before I write a *real* client.
 
-import sys, socket, ssl, threading, struct
+import sys, socket, ssl, threading, struct, time
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 PRESET_COLOURS = [
@@ -32,7 +32,7 @@ PRESET_COLOURS = [
 	QtGui.QColor( 51,102,153), # COL_CHANNEL_NOTICE = 23,
 ]
 
-protocolVer = 1
+protocolVer = 2
 sock = None
 authed = False
 sessionKey = b'\0'*16
@@ -185,7 +185,10 @@ class WindowTab(QtWidgets.QWidget):
 
 		self.enteredMessage.emit(line)
 
-	def pushMessage(self, msg):
+	def pushMessage(self, msg, timestamp):
+		ts = time.strftime('\x01[\x02\x10\x1D%H:%M:%S\x18\x01]\x02 ', time.localtime(timestamp))
+		msg = ts + msg
+
 		cursor = self.output.textCursor()
 
 		isAtEnd = cursor.atEnd()
@@ -301,7 +304,7 @@ class ChannelTab(WindowTab):
 		sublayout.addWidget(self.input)
 
 		layout = QtWidgets.QHBoxLayout(self)
-		layout.addLayout(sublayout)
+		layout.addLayout(sublayout, 1)
 		layout.addWidget(self.userList)
 
 	def readJunk(self, pdata, pos):
@@ -436,7 +439,7 @@ class MainWindow(QtWidgets.QMainWindow):
 				# Special type for messages coming from the reader
 				# function. Messy as fuck, but doesn't matter in this
 				# throwaway client
-				self.debugTab.pushMessage(pdata)
+				self.debugTab.pushMessage(pdata, 0)
 			elif ptype == -2:
 				# Also a special type, this means that it's
 				# a new session and we should delete all our
@@ -448,7 +451,7 @@ class MainWindow(QtWidgets.QMainWindow):
 			elif ptype == 1:
 				strlen = u32.unpack_from(pdata, 0)[0]
 				msg = pdata[4:4+strlen].decode('utf-8', 'replace')
-				self.debugTab.pushMessage(msg)
+				self.debugTab.pushMessage(msg, 0)
 			elif ptype == 0x100:
 				# ADD WINDOWS
 				wndCount = u32.unpack_from(pdata, 0)[0]
@@ -463,11 +466,13 @@ class MainWindow(QtWidgets.QMainWindow):
 					pos += 4
 					msgs = []
 					for j in range(msgCount):
+						timestamp = u32.unpack_from(pdata, pos)[0]
+						pos += 4
 						msglen = u32.unpack_from(pdata, pos)[0]
 						pos += 4
 						msg = pdata[pos:pos+msglen].decode('utf-8', 'replace')
 						pos += msglen
-						msgs.append(msg)
+						msgs.append((timestamp, msg))
 
 					if wtype == 1 or wtype == 3:
 						tab = WindowTab(self)
@@ -480,7 +485,9 @@ class MainWindow(QtWidgets.QMainWindow):
 					tab.enteredMessage.connect(self.handleWindowInput)
 					self.tabs.addTab(tab, wtitle)
 					self.tabLookup[wid] = tab
-					tab.pushMessage('\n'.join(msgs))
+
+					for timestamp, msg in msgs:
+						tab.pushMessage(msg, timestamp)
 			elif ptype == 0x101:
 				# WINDOW CLOSE
 				wndCount = u32.unpack_from(pdata, 0)[0]
@@ -497,9 +504,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
 			elif ptype == 0x102:
 				# WINDOW MESSAGES
-				wndID, priority, msglen = struct.unpack_from('<IbI', pdata, 0)
-				msg = pdata[9:9+msglen].decode('utf-8', 'replace')
-				self.tabLookup[wndID].pushMessage(msg)
+				wndID, timestamp, priority, ack, msglen = struct.unpack_from('<IIbbI', pdata, 0)
+				msg = pdata[14:14+msglen].decode('utf-8', 'replace')
+				self.tabLookup[wndID].pushMessage(msg, timestamp)
 			elif ptype == 0x103:
 				# WINDOW RENAME
 				wndID, msglen = struct.unpack_from('<II', pdata, 0)
@@ -571,7 +578,7 @@ class MainWindow(QtWidgets.QMainWindow):
 				writePacket(0x101, u32.pack(wid))
 			else:
 				data = str(text).encode('utf-8')
-				writePacket(0x102, struct.pack('<II', wid, len(data)) + data)
+				writePacket(0x102, struct.pack('<IbI', wid, 0, len(data)) + data)
 
 
 

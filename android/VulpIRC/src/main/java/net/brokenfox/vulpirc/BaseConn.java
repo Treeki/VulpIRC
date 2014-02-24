@@ -85,7 +85,7 @@ public class BaseConn {
 
 
 	// Packet system
-	public final static int PROTOCOL_VERSION = 1;
+	public final static int PROTOCOL_VERSION = 2;
 	private final static int SESSION_KEY_SIZE = 16;
 
 	private static class Packet {

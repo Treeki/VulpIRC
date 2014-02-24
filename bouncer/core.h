@@ -34,13 +34,14 @@
 
 #define SESSION_KEY_SIZE 16
 
-#define PROTOCOL_VERSION 1
+#define PROTOCOL_VERSION 2
 
 #define SERVE_VIA_TLS false
 
 class NetCore;
 class Bouncer;
 class IRCServer;
+class Client;
 
 // Need to move this somewhere more appropriate
 struct UserRef {
@@ -58,13 +59,18 @@ public:
 	Window(NetCore *_core);
 	virtual ~Window() { }
 
+	struct Message {
+		time_t time;
+		std::string text;
+	};
+
 	int id;
-	std::list<std::string> messages;
+	std::list<Message> messages;
 
 	virtual const char *getTitle() const = 0;
 	virtual int getType() const = 0;
 	virtual void syncStateForClient(Buffer &output);
-	void handleRawUserInput(const char *str);
+	void handleRawUserInput(const char *str, Client *sender = 0, int ackID = 0);
 	virtual void handleUserClosed();
 
 	void pushMessage(const char *str, int priority = 0);

@@ -61,12 +61,12 @@ public class WindowData {
 
 	// This is a kludge.
 	private final DateFormat timestampFormat = new SimpleDateFormat("\u0001[\u0002\u0010\u001DHH:mm:ss\u0018\u0001]\u0002 ", new DateFormatSymbols());
-	private String generateTimestamp() {
-		return timestampFormat.format(new Date());
-	}
 
 	public void pushMessage(String message) {
-		messages.add(RichText.process(generateTimestamp() + message));
+		pushMessage(message, new Date(), 0);
+	}
+	public void pushMessage(String message, Date when, int ackID) {
+		messages.add(RichText.process(timestampFormat.format(when) + message));
 		for (WindowListener l : mListeners)
 			l.handleMessagesChanged();
 	}
@@ -82,9 +82,10 @@ public class WindowData {
 		if (messageCount > 0) {
 			messages.ensureCapacity(messageCount);
 			for (int j = 0; j < messageCount; j++) {
+				int time = p.getInt();
 				String msg = Util.readStringFromBuffer(p);
 				//Log.i("VulpIRC", "msg " + j + ": " + msg);
-				messages.add(RichText.process(msg));
+				messages.add(RichText.process(timestampFormat.format(new Date((long)time * 1000)) + msg));
 			}
 		}
 	}
@@ -94,10 +95,11 @@ public class WindowData {
 	public void sendUserInput(CharSequence message) {
 		byte[] enc = Util.encodeString(message);
 
-		ByteBuffer buf = ByteBuffer.allocate(8 + enc.length);
+		ByteBuffer buf = ByteBuffer.allocate(9 + enc.length);
 		buf.order(ByteOrder.LITTLE_ENDIAN);
 
 		buf.putInt(id);
+		buf.put((byte)0);
 		buf.putInt(enc.length);
 		buf.put(enc);
 
