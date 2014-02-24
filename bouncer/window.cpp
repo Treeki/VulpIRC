@@ -3,6 +3,9 @@
 
 Window::Window(NetCore *_core) {
 	core = _core;
+
+	currentAckClient = 0;
+	currentAckID = 0;
 }
 
 void Window::syncStateForClient(Buffer &output) {
@@ -59,6 +62,14 @@ void Window::pushMessage(const char *str, int priority) {
 				createdPacket = true;
 			}
 
+			if (core->clients[i] == currentAckClient) {
+				packet.data()[ackPosition] = currentAckID;
+				currentAckClient = 0;
+				currentAckID = 0;
+			} else {
+				packet.data()[ackPosition] = 0;
+			}
+
 			core->clients[i]->sendPacket(Packet::B2C_WINDOW_MESSAGE, packet);
 		}
 	}
@@ -71,6 +82,11 @@ void Window::handleUserClosed() {
 void Window::handleRawUserInput(const char *str, Client *sender, int ackID) {
 	if (str[0] == 0)
 		return;
+
+	// Store the acknowledgement info, to be used by any
+	// calls to pushMessage
+	currentAckClient = sender;
+	currentAckID = ackID;
 
 	if (str[0] == '/') {
 		const char *space = strchr(str, ' ');
@@ -89,6 +105,26 @@ void Window::handleRawUserInput(const char *str, Client *sender, int ackID) {
 		}
 	} else {
 		handleUserInput(str);
+	}
+
+	// If we didn't push anything here, then we need to make sure
+	// we still acknowledge the client's request
+	// Assemble a dummy message packet
+	if (currentAckClient != 0 && currentAckClient->isAuthed()) {
+		timespec t;
+		clock_gettime(CLOCK_REALTIME, &t);
+
+		Buffer p;
+		p.writeU32(id);
+		p.writeU32(t.tv_sec);
+		p.writeU8(0);
+		p.writeU8(currentAckID);
+		p.writeStr("");
+
+		currentAckClient->sendPacket(Packet::B2C_WINDOW_MESSAGE, p);
+
+		currentAckClient = 0;
+		currentAckID = 0;
 	}
 }
 

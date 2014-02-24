@@ -79,6 +79,10 @@ public:
 protected:
 	virtual void handleCommand(const char *cmd, const char *args) { }
 	virtual void handleUserInput(const char *str) { }
+
+private:
+	Client *currentAckClient;
+	int currentAckID;
 };
 
 class IRCWindow : public Window {

@@ -119,12 +119,16 @@ public class WindowFragment extends Fragment implements WindowData.WindowListene
 	private class MessagesAdapter extends BaseAdapter implements ListAdapter {
 		@Override
 		public int getCount() {
-			return mData.messages.size();
+			return mData.messages.size() + mData.pendingMessages.size();
 		}
 
 		@Override
 		public Object getItem(int i) {
-			return mData.messages.get(i);
+			int msgCount = mData.messages.size();
+			if (i < msgCount)
+				return mData.messages.get(i);
+			else
+				return mData.pendingMessages.get(i - msgCount);
 		}
 
 		@Override
@@ -134,6 +138,8 @@ public class WindowFragment extends Fragment implements WindowData.WindowListene
 
 		@Override
 		public View getView(int i, View view, ViewGroup viewGroup) {
+			int msgCount = mData.messages.size();
+
 			TextView tv;
 
 			if (view != null && view instanceof TextView) {
@@ -142,7 +148,13 @@ public class WindowFragment extends Fragment implements WindowData.WindowListene
 				tv = new TextView(viewGroup.getContext());
 			}
 
-			tv.setText(mData.messages.get(i));
+			if (i < msgCount) {
+				tv.setText(mData.messages.get(i));
+				tv.setBackgroundColor(0);
+			} else {
+				tv.setText(mData.pendingMessages.get(i - msgCount).text);
+				tv.setBackgroundColor(0xFF300000);
+			}
 			return tv;
 		}
 	}

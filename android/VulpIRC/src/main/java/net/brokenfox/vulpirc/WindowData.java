@@ -19,7 +19,22 @@ public class WindowData {
 	public String title;
 	public int unreadLevel = 0;
 
+	public static class PendingMessage {
+		public int id;
+		public CharSequence text;
+	}
 	public ArrayList<CharSequence> messages = new ArrayList<CharSequence>();
+	public ArrayList<PendingMessage> pendingMessages = new ArrayList<PendingMessage>();
+
+	private int mNextAckID = 1;
+	private int allocateAckID() {
+		int id = mNextAckID;
+		mNextAckID++;
+		if (mNextAckID > 127)
+			mNextAckID = 1;
+		return id;
+	}
+
 
 	protected Fragment instantiateFragmentClass() {
 		return new WindowFragment();
@@ -66,9 +81,26 @@ public class WindowData {
 		pushMessage(message, new Date(), 0);
 	}
 	public void pushMessage(String message, Date when, int ackID) {
-		messages.add(RichText.process(timestampFormat.format(when) + message));
-		for (WindowListener l : mListeners)
-			l.handleMessagesChanged();
+		boolean didChange = false;
+
+		if (!message.isEmpty()) {
+			messages.add(RichText.process(timestampFormat.format(when) + message));
+			didChange = true;
+		}
+
+		if (ackID != 0) {
+			for (PendingMessage p : pendingMessages) {
+				if (p.id == ackID) {
+					pendingMessages.remove(p);
+					didChange = true;
+					break;
+				}
+			}
+		}
+
+		if (didChange)
+			for (WindowListener l : mListeners)
+				l.handleMessagesChanged();
 	}
 
 
@@ -93,13 +125,23 @@ public class WindowData {
 
 
 	public void sendUserInput(CharSequence message) {
+		// Add pending message to UI
+		PendingMessage pend = new PendingMessage();
+		pend.id = allocateAckID();
+		pend.text = RichText.process(timestampFormat.format(new Date()) + message);
+		pendingMessages.add(pend);
+
+		for (WindowListener l : mListeners)
+			l.handleMessagesChanged();
+
+		// Send it to the server
 		byte[] enc = Util.encodeString(message);
 
 		ByteBuffer buf = ByteBuffer.allocate(9 + enc.length);
 		buf.order(ByteOrder.LITTLE_ENDIAN);
 
 		buf.putInt(id);
-		buf.put((byte)0);
+		buf.put((byte)pend.id);
 		buf.putInt(enc.length);
 		buf.put(enc);
 
