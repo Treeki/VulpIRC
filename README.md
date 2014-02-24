@@ -4,7 +4,7 @@ VulpIRC
 A hybrid IRC client/bouncer designed for mobile platforms.
 
 VulpIRC currently includes a back-end bouncer/server which runs on POSIX
-systems (Windows support coming soon), a client for Android, and a prototype
+and Windows systems, a client for Android, and a prototype
 desktop client written using PyQt (for testing purposes).
 
 (Possible future plans include a polished desktop client, an iOS client, a
@@ -42,8 +42,8 @@ I've implemented already. There's tons more to go after this...
 - Written in C++ with minimal dependencies (gnutls for SSL/TLS support, which
   is optional)
 - Supports SSL/TLS for client connections and for IRC server connections
-- Runs on POSIX systems (developed and tested on Linux, but I plan to try and
-  make sure it works on other systems, and Windows support will be added later)
+- Runs on POSIX and Windows systems (mainly developed and tested on Linux,
+  but I plan to try and make sure it works on other systems)
 - Single user (multiple user support planned)
 - Multiple clients and IRC servers
 - Sessions are automatically suspended in case of connection loss, and can be
