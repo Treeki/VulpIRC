@@ -2,8 +2,13 @@
 #define DNS_H 
 
 #include <sys/types.h>
+
+#ifdef _WIN32
+#include <WS2tcpip.h>
+#else
 #include <sys/socket.h>
 #include <netdb.h>
+#endif
 
 namespace DNS {
 	void start();

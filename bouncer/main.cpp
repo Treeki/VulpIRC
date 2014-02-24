@@ -1,6 +1,34 @@
 #include "core.h"
 #include "dns.h"
 
+bool initSockets() {
+#ifndef _WIN32
+	// no-op on non-Winsock systems
+	return true;
+#else
+	WSADATA data;
+	int r = WSAStartup(MAKEWORD(2, 2), &data);
+	if (r != 0) {
+		printf("WSAStartup failed: error %d\n", r);
+		return false;
+	}
+
+	if ((LOBYTE(data.wVersion) != 2) || (HIBYTE(data.wVersion) != 2)) {
+		printf("Could not find a usable WinSock version\n");
+		WSACleanup();
+		return false;
+	}
+
+	return true;
+#endif
+}
+
+void cleanupSockets() {
+#ifdef _WIN32
+	WSACleanup();
+#endif
+}
+
 #ifdef USE_GNUTLS
 static gnutls_dh_params_t dh_params;
 gnutls_certificate_credentials_t g_serverCreds, g_clientCreds;
@@ -49,6 +77,8 @@ void cleanupTLS() {
 #endif
 
 int main(int argc, char **argv) {
+	if (!initSockets())
+		return EXIT_FAILURE;
 #ifdef USE_GNUTLS
 	if (!initTLS())
 		return EXIT_FAILURE;
@@ -66,6 +96,7 @@ int main(int argc, char **argv) {
 #ifdef USE_GNUTLS
 	cleanupTLS();
 #endif
+	cleanupSockets();
 
 	if (errcode < 0) {
 		printf("(Bouncer::execute failed with %d)\n", errcode);

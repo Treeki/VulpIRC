@@ -197,7 +197,7 @@ void calculateHSL(float h, float s, float l, uint8_t *r, uint8_t *g, uint8_t *b)
 	// make it RGB
 
 	if (s == 0) {
-		*r = *g = *b = l*255.0f;
+		*r = *g = *b = (uint8_t)(l*255.0f);
 	} else {
 		float m1, m2;
 		if (l <= 0.5f)
@@ -207,9 +207,9 @@ void calculateHSL(float h, float s, float l, uint8_t *r, uint8_t *g, uint8_t *b)
 
 		m1 = 2.0f * s - m2;
 
-		*r = hslValue(m1, m2, h * 6.0f + 2.0) * 255.0f;
-		*g = hslValue(m1, m2, h * 6.0f) * 255.0f;
-		*b = hslValue(m1, m2, h * 6.0f - 2.0) * 255.0f;
+		*r = (uint32_t)(hslValue(m1, m2, h * 6.0f + 2.0f) * 255.0f);
+		*g = (uint32_t)(hslValue(m1, m2, h * 6.0f) * 255.0f);
+		*b = (uint32_t)(hslValue(m1, m2, h * 6.0f - 2.0f) * 255.0f);
 	}
 }
 

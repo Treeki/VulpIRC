@@ -54,7 +54,7 @@ int NetCore::execute() {
 	}
 
 	int v = 1;
-	if (setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &v, sizeof(v)) == -1) {
+	if (setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, (const char *)&v, sizeof(v)) == -1) {
 		perror("Could not set SO_REUSEADDR");
 		return -2;
 	}
@@ -196,7 +196,7 @@ int NetCore::execute() {
 						int sockErr;
 						socklen_t sockErrSize = sizeof(sockErr);
 
-						if (getsockopt(server->sock, SOL_SOCKET, SO_ERROR, &sockErr, &sockErrSize) == 0) {
+						if (getsockopt(server->sock, SOL_SOCKET, SO_ERROR, (char *)&sockErr, &sockErrSize) == 0) {
 							if (sockErr == 0)
 								didSucceed = true;
 						}
@@ -237,8 +237,13 @@ int NetCore::execute() {
 			if (clientCount >= CLIENT_LIMIT) {
 				// We can't accept it.
 				printf("Too many connections, we can't accept this one. THIS SHOULD NEVER HAPPEN.\n");
+#ifdef _WIN32
+				shutdown(sock, SD_BOTH);
+				closesocket(sock);
+#else
 				shutdown(sock, SHUT_RDWR);
 				close(sock);
+#endif
 			} else {
 				// Create a new connection
 				printf("[%d] New connection, fd=%d\n", clientCount, sock);
@@ -260,8 +265,13 @@ int NetCore::execute() {
 	for (int i = 0; i < clientCount; i++)
 		clients[i]->close();
 
+#ifdef _WIN32
+	shutdown(listener, SD_BOTH);
+	closesocket(listener);
+#else
 	shutdown(listener, SHUT_RDWR);
 	close(listener);
+#endif
 
 	for (int i = 0; i < serverCount; i++)
 		delete servers[i];

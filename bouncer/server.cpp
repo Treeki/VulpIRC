@@ -93,7 +93,12 @@ void Server::tryConnectPhase() {
 				outAddr.sin_addr.s_addr = result.s_addr;
 
 				if (::connect(sock, (sockaddr *)&outAddr, sizeof(outAddr)) == -1) {
-					if (errno == EINPROGRESS) {
+#ifdef _WIN32
+					if (WSAGetLastError() == WSAEWOULDBLOCK)
+#else
+					if (errno == EINPROGRESS)
+#endif
+					{
 						state = CS_WAITING_CONNECT;
 					} else {
 						perror("[Server] Could not connect");

@@ -1,8 +1,13 @@
 #include "dns.h"
-#include <pthread.h>
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
+
+#ifdef _WIN32
+#include <process.h>
+#else
+#include <pthread.h>
+#endif
 
 #define DNS_QUERY_COUNT 20
 #define DNS_QUERY_NAME_SIZE 256
@@ -23,39 +28,85 @@ struct DNSQuery {
 
 static DNSQuery dnsQueue[DNS_QUERY_COUNT];
 static bool dnsQuit = false;
+
+#ifdef _WIN32
+static HANDLE dnsThread;
+static CRITICAL_SECTION dnsQueueCS;
+static HANDLE dnsQueueEvent;
+#else
 static pthread_t dnsThread;
 static pthread_mutex_t dnsQueueMutex;
 static pthread_cond_t dnsQueueCond;
+#endif
 
+#ifdef _WIN32
+static unsigned int __stdcall dnsThreadProc(void *);
+
+static inline void _dnsQueueLock() {
+	EnterCriticalSection(&dnsQueueCS);
+}
+static inline void _dnsQueueUnlock() {
+	LeaveCriticalSection(&dnsQueueCS);
+}
+static inline void _dnsQueueSignal() {
+	SetEvent(dnsQueueEvent);
+}
+#else
 static void *dnsThreadProc(void *);
+
+static inline void _dnsQueueLock() {
+	pthread_mutex_lock(&dnsQueueMutex);
+}
+static inline void _dnsQueueUnlock() {
+	pthread_mutex_unlock(&dnsQueueMutex);
+}
+static inline void _dnsQueueSignal() {
+	pthread_cond_signal(&dnsQueueCond);
+}
+#endif
 
 
 void DNS::start() {
+#ifndef _WIN32
 	pthread_mutex_init(&dnsQueueMutex, NULL);
 	pthread_cond_init(&dnsQueueCond, NULL);
 
 	pthread_create(&dnsThread, NULL, &dnsThreadProc, NULL);
+#endif
 
 	for (int i = 0; i < DNS_QUERY_COUNT; i++) {
 		dnsQueue[i].status = DQS_FREE;
 		dnsQueue[i].version = 0;
 	}
+
+#ifdef _WIN32
+	InitializeCriticalSection(&dnsQueueCS);
+	dnsQueueEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
+	dnsThread = (HANDLE)_beginthreadex(NULL, 0, &dnsThreadProc, NULL, 0, NULL);
+#endif
 }
 
 void DNS::stop() {
-	pthread_mutex_lock(&dnsQueueMutex);
+	_dnsQueueLock();
 	dnsQuit = true;
-	pthread_mutex_unlock(&dnsQueueMutex);
-	pthread_cond_signal(&dnsQueueCond);
+	_dnsQueueUnlock();
+	_dnsQueueSignal();
 
+#ifdef _WIN32
+	WaitForSingleObject(dnsThread, INFINITE);
+	CloseHandle(dnsThread);
+
+	DeleteCriticalSection(&dnsQueueCS);
+	CloseHandle(dnsQueueEvent);
+#else
 	pthread_join(dnsThread, NULL);
-
+#endif
 }
 
 int DNS::makeQuery(const char *name) {
 	int id = -1;
 
-	pthread_mutex_lock(&dnsQueueMutex);
+	_dnsQueueLock();
 
 	for (int i = 0; i < DNS_QUERY_COUNT; i++) {
 		if (dnsQueue[i].status == DQS_FREE) {
@@ -72,8 +123,8 @@ int DNS::makeQuery(const char *name) {
 		printf("[DNS::%d] New query: %s\n", id, dnsQueue[id].name);
 	}
 
-	pthread_mutex_unlock(&dnsQueueMutex);
-	pthread_cond_signal(&dnsQueueCond);
+	_dnsQueueUnlock();
+	_dnsQueueSignal();
 
 	return id;
 }
@@ -82,17 +133,17 @@ void DNS::closeQuery(int id) {
 	if (id < 0 || id >= DNS_QUERY_COUNT)
 		return;
 
-	pthread_mutex_lock(&dnsQueueMutex);
+	_dnsQueueLock();
 	printf("[DNS::%d] Closing query\n", id);
 	dnsQueue[id].status = DQS_FREE;
-	pthread_mutex_unlock(&dnsQueueMutex);
+	_dnsQueueUnlock();
 }
 
 bool DNS::checkQuery(int id, in_addr *pResult, bool *pIsError) {
 	if (id < 0 || id >= DNS_QUERY_COUNT)
 		return false;
 
-	pthread_mutex_lock(&dnsQueueMutex);
+	_dnsQueueLock();
 
 	bool finalResult = false;
 	if (dnsQueue[id].status == DQS_COMPLETE) {
@@ -104,14 +155,18 @@ bool DNS::checkQuery(int id, in_addr *pResult, bool *pIsError) {
 		*pIsError = true;
 	}
 
-	pthread_mutex_unlock(&dnsQueueMutex);
+	_dnsQueueUnlock();
 
 	return finalResult;
 }
 
 
+#ifdef _WIN32
+unsigned int __stdcall dnsThreadProc(void *) {
+#else
 void *dnsThreadProc(void *) {
-	pthread_mutex_lock(&dnsQueueMutex);
+#endif
+	_dnsQueueLock();
 
 	dnsQuit = false;
 
@@ -125,7 +180,7 @@ void *dnsThreadProc(void *) {
 
 				printf("[DNS::%d] Trying %s...\n", i, nameCopy);
 
-				pthread_mutex_unlock(&dnsQueueMutex);
+				_dnsQueueUnlock();
 
 				addrinfo hints, *res;
 
@@ -137,7 +192,7 @@ void *dnsThreadProc(void *) {
 
 				int s = getaddrinfo(nameCopy, NULL, &hints, &res);
 
-				pthread_mutex_lock(&dnsQueueMutex);
+				_dnsQueueLock();
 
 				// Before we write to the request, check that it hasn't been
 				// closed (and possibly replaced...!) by another thread
@@ -163,10 +218,19 @@ void *dnsThreadProc(void *) {
 			}
 		}
 
+#ifdef _WIN32
+		_dnsQueueUnlock();
+		WaitForSingleObject(dnsQueueEvent, INFINITE);
+		_dnsQueueLock();
+#else
 		pthread_cond_wait(&dnsQueueCond, &dnsQueueMutex);
+#endif
 	}
 
-	pthread_mutex_unlock(&dnsQueueMutex);
+	_dnsQueueUnlock();
+
+#ifdef _WIN32
+	_endthreadex(0);
+#endif
 	return NULL;
 }
-

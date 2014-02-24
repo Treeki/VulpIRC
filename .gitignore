@@ -2,3 +2,5 @@ binary
 *.crt
 *.key
 *.ini
+*.sdf
+*.opensdf

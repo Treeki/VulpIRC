@@ -20,7 +20,7 @@ void Window::syncStateForClient(Buffer &output) {
 		e = messages.end();
 
 	for (; i != e; ++i) {
-		output.writeU32(i->time);
+		output.writeU32((uint32_t)i->time);
 		output.writeStr(i->text.c_str());
 	}
 }
@@ -38,11 +38,17 @@ void Window::pushMessage(const char *str, int priority) {
 	if (messages.size() >= core->maxWindowMessageCount)
 		messages.pop_front();
 
+	time_t now;
+#ifdef _WIN32
+	now = time(NULL);
+#else
 	timespec t;
 	clock_gettime(CLOCK_REALTIME, &t);
+	now = t.tv_sec;
+#endif
 
 	Message m;
-	m.time = t.tv_sec;
+	m.time = now;
 	m.text = str;
 	messages.push_back(m);
 
@@ -54,7 +60,7 @@ void Window::pushMessage(const char *str, int priority) {
 		if (core->clients[i]->isAuthed()) {
 			if (!createdPacket) {
 				packet.writeU32(id);
-				packet.writeU32(m.time);
+				packet.writeU32((uint32_t)m.time);
 				packet.writeU8(priority);
 				ackPosition = packet.size();
 				packet.writeU8(0); // ACK response ID
@@ -111,12 +117,18 @@ void Window::handleRawUserInput(const char *str, Client *sender, int ackID) {
 	// we still acknowledge the client's request
 	// Assemble a dummy message packet
 	if (currentAckClient != 0 && currentAckClient->isAuthed()) {
+		time_t now;
+#ifdef _WIN32
+		now = time(NULL);
+#else
 		timespec t;
 		clock_gettime(CLOCK_REALTIME, &t);
+		now = t.tv_sec;
+#endif
 
 		Buffer p;
 		p.writeU32(id);
-		p.writeU32(t.tv_sec);
+		p.writeU32((uint32_t)now);
 		p.writeU8(0);
 		p.writeU8(currentAckID);
 		p.writeStr("");

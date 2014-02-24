@@ -1,6 +1,14 @@
 #include "core.h"
 
 /*static*/ bool SocketRWCommon::setSocketNonBlocking(int sock) {
+#ifdef _WIN32
+	u_long m = 1;
+	if (ioctlsocket(sock, FIONBIO, &m) != NO_ERROR) {
+		printf("ioctlsocket failed");
+		return false;
+	}
+	return true;
+#else
 	int opts = fcntl(sock, F_GETFL);
 	if (opts < 0) {
 		perror("Could not get fcntl options\n");
@@ -12,6 +20,7 @@
 		return false;
 	}
 	return true;
+#endif
 }
 
 
@@ -65,8 +74,14 @@ void SocketRWCommon::close() {
 		if (tlsActive)
 			gnutls_bye(tls, GNUTLS_SHUT_RDWR);
 #endif
+
+#ifdef _WIN32
+		shutdown(sock, SD_BOTH);
+		closesocket(sock);
+#else
 		shutdown(sock, SHUT_RDWR);
 		::close(sock);
+#endif
 	}
 
 	sock = -1;

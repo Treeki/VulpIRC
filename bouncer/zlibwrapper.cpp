@@ -1,4 +1,6 @@
 #include "zlibwrapper.h"
+
+#ifdef USE_ZLIB
 #include <zlib.h>
 
 bool ZlibWrapper::compress(const Buffer &input, Buffer &output) {
@@ -35,3 +37,4 @@ bool ZlibWrapper::compress(const Buffer &input, Buffer &output) {
 
 	return true;
 }
+#endif

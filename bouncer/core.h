@@ -6,7 +6,7 @@
 
 // Set in build.sh
 //#define USE_GNUTLS
-#define USE_ZLIB
+//#define USE_ZLIB
 
 #include <string.h>
 #include <stdint.h>
@@ -15,15 +15,31 @@
 #include <inttypes.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #include <time.h>
+#ifndef _WIN32
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <netinet/in.h>
+#endif
 #include <list>
 #include <map>
 #include <string>
+
+#ifdef _WIN32
+#include <WS2tcpip.h>
+
+#include <basetsd.h>
+typedef SSIZE_T ssize_t;
+
+// Damnit, Windows
+#define snprintf _snprintf
+#define strtok_r strtok_s
+#endif
 
 #include "buffer.h"
 
