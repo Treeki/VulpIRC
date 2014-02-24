@@ -12,6 +12,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <inttypes.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -286,7 +287,7 @@ private:
 	time_t deadTime;
 
 	std::list<Packet *> packetCache;
-	int nextPacketID, lastReceivedPacketID;
+	uint32_t nextPacketID, lastReceivedPacketID;
 
 public:
 	Client(NetCore *_netCore);
@@ -455,7 +456,7 @@ public:
 	bool quitFlag;
 
 	std::string bouncerPassword;
-	int maxWindowMessageCount;
+	unsigned int maxWindowMessageCount;
 	int sessionKeepalive;
 
 	int execute();

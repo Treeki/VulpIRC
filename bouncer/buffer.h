@@ -147,7 +147,7 @@ public:
 	int16_t readS16() { int16_t v; read((char *)&v, 2); return v; }
 	int8_t readS8() { int8_t v; read((char *)&v, 1); return v; }
 
-	void readStr(char *output, int bufferSize) {
+	void readStr(char *output, size_t bufferSize) {
 		uint32_t size = readU32();
 		if (!readRemains(size)) {
 			strcpy(output, "");
@@ -155,7 +155,7 @@ public:
 		}
 
 		// How much can we safely get?
-		int readAmount;
+		size_t readAmount;
 		if (size < (bufferSize - 1))
 			readAmount = size;
 		else

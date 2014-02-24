@@ -109,7 +109,7 @@ void SocketRWCommon::readAction() {
 
 	if (amount > 0) {
 		// Yep, we have data
-		printf("[fd=%d] Read %d bytes\n", sock, amount);
+		printf("[fd=%d] Read %" PRIuPTR " bytes\n", sock, amount);
 		inputBuf.resize(bufSize + amount);
 
 		processReadBuffer();
@@ -122,7 +122,7 @@ void SocketRWCommon::readAction() {
 #ifdef USE_GNUTLS
 		if (tlsActive) {
 			if (gnutls_error_is_fatal(amount)) {
-				printf("Error while reading [gnutls %d]!\n", amount);
+				printf("Error while reading [gnutls %" PRIuPTR "]!\n", amount);
 				close();
 			}
 		} else
@@ -153,7 +153,7 @@ void SocketRWCommon::writeAction() {
 	}
 
 	if (amount > 0) {
-		printf("[fd=%d] Wrote %d bytes out of %d\n", sock, amount, outputBuf.size());
+		printf("[fd=%d] Wrote %" PRIuPTR " bytes out of %d\n", sock, amount, outputBuf.size());
 		outputBuf.trimFromStart(amount);
 	} else if (amount == 0)
 		printf("Sent 0!\n");
@@ -161,7 +161,7 @@ void SocketRWCommon::writeAction() {
 #ifdef USE_GNUTLS
 		if (tlsActive) {
 			if (gnutls_error_is_fatal(amount)) {
-				printf("Error while sending [gnutls %d]!\n", amount);
+				printf("Error while sending [gnutls %" PRIuPTR "]!\n", amount);
 				close();
 			}
 		} else

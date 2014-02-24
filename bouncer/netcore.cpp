@@ -113,7 +113,7 @@ int NetCore::execute() {
 			} else {
 				// Outdated session, can we kill it?
 				if (now >= clients[i]->deadTime) {
-					printf("[%d] Session expired, deleting\n", now);
+					printf("[%ld] Session expired, deleting\n", now);
 
 					// Yep.
 					Client *client = clients[i];
@@ -160,7 +160,7 @@ int NetCore::execute() {
 		timeval timeout;
 		timeout.tv_sec = 1;
 		timeout.tv_usec = 0;
-		int numFDs = select(maxFD+1, &readSet, &writeSet, NULL, &timeout);
+		select(maxFD+1, &readSet, &writeSet, NULL, &timeout);
 
 		now = time(NULL);
 		//printf("[%lu select:%d]\n", now, numFDs);
@@ -289,6 +289,8 @@ int NetCore::registerWindow(Window *window) {
 	for (int i = 0; i < clientCount; i++)
 		if (clients[i]->isAuthed())
 			clients[i]->sendPacket(Packet::B2C_WINDOW_ADD, pkt);
+
+	return window->id;
 }
 
 void NetCore::deregisterWindow(Window *window) {

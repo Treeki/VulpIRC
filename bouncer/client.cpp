@@ -98,7 +98,7 @@ void Client::generateSessionKey() {
 
 	while (true) {
 		for (int i = 0; i < SESSION_KEY_SIZE; i++) {
-			if (i < sizeof(time_t))
+			if ((unsigned)i < sizeof(time_t))
 				sessionKey[i] = ((uint8_t*)&now)[i];
 			else
 				sessionKey[i] = rand() & 255;
@@ -225,7 +225,7 @@ void Client::processReadBuffer() {
 	while (inputBuf.readRemains(8)) {
 		// We have 8 bytes, so we can try to read a basic header
 		Packet::Type type = (Packet::Type)inputBuf.readU16();
-		int reserved = inputBuf.readU16();
+		inputBuf.readU16(); // reserved value
 		uint32_t packetSize = inputBuf.readU32();
 		bool silentlyIgnore = false;
 

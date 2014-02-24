@@ -51,7 +51,7 @@ void MobileClient::sessionStartEvent() {
 
 	// Send info about the sync
 	snprintf(tmp, sizeof(tmp),
-		"Synchronising %d window%s, %d byte%s total...",
+		"Synchronising %" PRIuPTR " window%s, %d byte%s total...",
 		bouncer->windows.size(),
 		(bouncer->windows.size() == 1) ? "" : "s",
 		syncPacket.size(),

@@ -647,6 +647,8 @@ uint32_t IRCServer::getUserFlag(char search, const char *array) const {
 		flag >>= 1;
 		++array;
 	}
+
+	return 0;
 }
 
 uint32_t IRCServer::getUserFlagByPrefix(char prefix) const {
