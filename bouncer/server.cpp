@@ -160,6 +160,8 @@ void Server::close() {
 
 	if (saveState == CS_CONNECTED)
 		disconnectedEvent();
+	else if (saveState != CS_DISCONNECTED)
+		connectionErrorEvent();
 }
 
 

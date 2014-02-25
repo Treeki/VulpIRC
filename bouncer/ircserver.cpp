@@ -31,6 +31,10 @@ IRCServer::IRCServer(Bouncer *_bouncer) :
 	bouncer(_bouncer),
 	status(this)
 {
+	isActive = false;
+
+	reconnectTime = 0;
+	connectionAttempt = 0;
 }
 
 IRCServer::~IRCServer() {
@@ -51,11 +55,57 @@ void IRCServer::attachedToCore() {
 	bouncer->registerWindow(&status);
 }
 
-void IRCServer::connect() {
+void IRCServer::requestConnect() {
 	status.pushMessage("Connecting...");
+
+	isActive = true;
+	connectionAttempt = 1;
+	reconnectTime = 0;
+
 	Server::connect(
 		config.hostname.c_str(), config.port,
 		config.useTls);
+}
+
+void IRCServer::requestDisconnect() {
+	if (isActive && (reconnectTime != 0)) {
+		status.pushMessage("Reconnect cancelled.");
+	}
+
+	isActive = false;
+	reconnectTime = 0;
+
+	close();
+}
+
+void IRCServer::doReconnect() {
+	status.pushMessage("Reconnecting...");
+	reconnectTime = 0;
+
+	Server::connect(
+		config.hostname.c_str(), config.port,
+		config.useTls);
+}
+
+void IRCServer::scheduleReconnect() {
+	int delay;
+
+	if (connectionAttempt < 6)
+		delay = connectionAttempt * 15;
+	else
+		delay = (connectionAttempt - 3) * 30;
+
+	if (delay > 300)
+		delay = 300;
+	reconnectTime = time(NULL) + delay;
+
+	char buf[256];
+	snprintf(buf, sizeof(buf),
+		"Reconnection attempt #%d in %d seconds...",
+		connectionAttempt, delay);
+	status.pushMessage(buf);
+
+	connectionAttempt++;
 }
 
 
@@ -125,6 +175,9 @@ void IRCServer::deleteQuery(Query *query) {
 void IRCServer::connectedEvent() {
 	resetIRCState();
 
+	// reset reconnection attempts
+	connectionAttempt = 1;
+
 	printf("[IRCServer:%p] connectedEvent\n", this);
 	status.pushMessage("Connected, identifying to IRC...");
 
@@ -148,7 +201,19 @@ void IRCServer::disconnectedEvent() {
 
 	for (auto &i : channels)
 		i.second->disconnected();
+
+	if (isActive)
+		scheduleReconnect();
 }
+
+void IRCServer::connectionErrorEvent() {
+	status.pushMessage("Connection failed.");
+
+	if (isActive)
+		scheduleReconnect();
+}
+
+
 void IRCServer::lineReceivedEvent(char *line, int size) {
 	printf("[%d] { %s }\n", size, line);
 

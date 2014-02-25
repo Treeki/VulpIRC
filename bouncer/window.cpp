@@ -357,11 +357,11 @@ void StatusWindow::handleCommand(const char *cmd, const char *args) {
 		} else if (server->config.hostname.size() == 0) {
 			pushMessage("Use /server <name> to set an IRC server to connect to");
 		} else {
-			server->connect();
+			server->requestConnect();
 		}
 
 	} else if (strcmp(cmd, "disconnect") == 0) {
-		server->close();
+		server->requestDisconnect();
 
 	} else if (strcmp(cmd, "defaultnick") == 0) {
 		server->config.nickname = args;

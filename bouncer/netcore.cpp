@@ -137,7 +137,12 @@ int NetCore::execute() {
 		}
 
 		for (int i = 0; i < serverCount; i++) {
-			if (servers[i]->state == Server::CS_WAITING_DNS)
+			if (servers[i]->state == Server::CS_DISCONNECTED) {
+				time_t reconTime = servers[i]->getReconnectTime();
+				if ((reconTime != 0) && (now > reconTime))
+					servers[i]->doReconnect();
+
+			} else if (servers[i]->state == Server::CS_WAITING_DNS)
 				servers[i]->tryConnectPhase();
 #ifdef USE_GNUTLS
 			else if (servers[i]->state == Server::CS_TLS_HANDSHAKE) {

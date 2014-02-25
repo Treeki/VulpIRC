@@ -377,10 +377,14 @@ private:
 	void processReadBuffer();
 
 	virtual void connectedEvent() = 0;
+	virtual void connectionErrorEvent() = 0;
 	virtual void disconnectedEvent() = 0;
 	virtual void lineReceivedEvent(char *line, int size) = 0;
 
 	virtual void attachedToCore() { }
+
+	virtual time_t getReconnectTime() const { return 0; }
+	virtual void doReconnect() { }
 };
 
 struct IRCNetworkConfig {
@@ -424,11 +428,24 @@ public:
 	IRCServer(Bouncer *_bouncer);
 	~IRCServer();
 
-	void connect();
+	void requestConnect();
+	void requestDisconnect();
+
+	virtual time_t getReconnectTime() const { return reconnectTime; }
+	virtual void doReconnect();
 
 	// Events!
 private:
+	// set to true when user requests to connect, set to false when
+	// user requests to disconnect -- if not active, we won't auto
+	// reconnect when the connection dies
+	bool isActive;
+	time_t reconnectTime;
+	int connectionAttempt;
+	void scheduleReconnect();
+
 	virtual void connectedEvent();
+	virtual void connectionErrorEvent();
 	virtual void disconnectedEvent();
 	virtual void lineReceivedEvent(char *line, int size);
 
