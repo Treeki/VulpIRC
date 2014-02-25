@@ -7,6 +7,7 @@ import android.text.style.BackgroundColorSpan;
 import android.text.style.ForegroundColorSpan;
 import android.text.style.StyleSpan;
 import android.text.style.UnderlineSpan;
+import android.text.util.Linkify;
 
 import java.util.HashMap;
 
@@ -85,19 +86,22 @@ public class RichText {
 				if (c == 1 && boldStart == -1) {
 					boldStart = out;
 				} else if (c == 2 && boldStart > -1) {
-					s.setSpan(boldSpan, boldStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+					if (boldStart != out)
+						s.setSpan(boldSpan, boldStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 					boldStart = -1;
 
 				} else if (c == 3 && italicStart == -1) {
 					italicStart = out;
 				} else if (c == 4 && italicStart > -1) {
-					s.setSpan(italicSpan, italicStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+					if (italicStart != out)
+						s.setSpan(italicSpan, italicStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 					italicStart = -1;
 
 				} else if (c == 5 && underlineStart == -1) {
 					underlineStart = out;
 				} else if (c == 6 && underlineStart > -1) {
-					s.setSpan(underlineSpan, underlineStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+					if (underlineStart != out)
+						s.setSpan(underlineSpan, underlineStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 					underlineStart = -1;
 
 				} else if (c >= 0x10 && c <= 0x1F) {
@@ -181,12 +185,14 @@ public class RichText {
 						// End the existing span, no matter what...
 						if (isBG) {
 							if (bgStart > -1) {
-								s.setSpan(bgSpan, bgStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+								if (bgStart != out)
+									s.setSpan(bgSpan, bgStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 								bgStart = -1;
 							}
 						} else {
 							if (fgStart > -1) {
-								s.setSpan(fgSpan, fgStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+								if (fgStart != out)
+									s.setSpan(fgSpan, fgStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 								fgStart = -1;
 							}
 						}
@@ -220,16 +226,18 @@ public class RichText {
 		}
 
 		// Any un-applied spans?
-		if (boldStart > -1)
+		if (boldStart > -1 && boldStart != out)
 			s.setSpan(boldSpan, boldStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-		if (italicStart > -1)
+		if (italicStart > -1 && italicStart != out)
 			s.setSpan(italicSpan, italicStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-		if (underlineStart > -1)
+		if (underlineStart > -1 && underlineStart != out)
 			s.setSpan(underlineSpan, underlineStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-		if (bgStart > -1)
+		if (bgStart > -1 && bgStart != out)
 			s.setSpan(bgSpan, bgStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-		if (fgStart > -1)
+		if (fgStart > -1 && fgStart != out)
 			s.setSpan(fgSpan, fgStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+
+		Linkify.addLinks(s, Linkify.WEB_URLS);
 
 		return s;
 	}
