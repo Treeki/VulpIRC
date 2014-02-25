@@ -619,7 +619,17 @@ void IRCServer::lineReceivedEvent(char *line, int size) {
 		}
 	}
 
-	status.pushMessage("!! Unhandled !!");
+	char tmpstr[2048];
+	if (user.isValid)
+		snprintf(tmpstr, sizeof(tmpstr),
+			"[[Unhandled \"%s\" from %s!%s@%s]]",
+			cmdBuf, user.nick.c_str(), user.ident.c_str(), user.hostmask.c_str());
+	else
+		snprintf(tmpstr, sizeof(tmpstr),
+			"[[Unhandled \"%s\"]]",
+			cmdBuf);
+
+	status.pushMessage(tmpstr);
 	status.pushMessage(line);
 }
 
