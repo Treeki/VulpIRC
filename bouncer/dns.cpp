@@ -188,7 +188,11 @@ void *dnsThreadProc(void *) {
 				hints.ai_family = AF_INET;
 				hints.ai_socktype = SOCK_STREAM;
 				hints.ai_protocol = IPPROTO_TCP;
+#ifdef ANDROID
+				hints.ai_flags = 0;
+#else
 				hints.ai_flags = AI_ADDRCONFIG | AI_V4MAPPED;
+#endif
 
 				int s = getaddrinfo(nameCopy, NULL, &hints, &res);
 
@@ -207,7 +211,7 @@ void *dnsThreadProc(void *) {
 						printf("[DNS::%d] Resolved %s to %x\n", i, dnsQueue[i].name, dnsQueue[i].result.s_addr);
 					} else {
 						dnsQueue[i].status = DQS_ERROR;
-						printf("[DNS::%d] Error condition: %d\n", i, s);
+						printf("[DNS::%d] Error condition: %d (%s)\n", i, s, gai_strerror(s));
 					}
 				} else {
 					printf("[DNS::%d] Request was cancelled before getaddrinfo completed\n", i);

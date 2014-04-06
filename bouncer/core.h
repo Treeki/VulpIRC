@@ -15,7 +15,6 @@
 #include <inttypes.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <inttypes.h>
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -39,6 +38,11 @@ typedef SSIZE_T ssize_t;
 // Damnit, Windows
 #define snprintf _snprintf
 #define strtok_r strtok_s
+#endif
+
+// Damnit, Android!
+#if defined(ANDROID) && !defined(PRIuPTR)
+#define PRIuPTR "u"
 #endif
 
 #include "buffer.h"
