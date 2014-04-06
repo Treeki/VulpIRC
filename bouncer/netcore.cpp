@@ -355,7 +355,7 @@ void NetCore::loadConfig() {
 		if (section.title == "Header") {
 			bouncerPassword = section.data["password"];
 
-			v = atoi(section.data["maxBufferSize"].c_str());
+			v = atoi(section.data["maxWindowMessageCount"].c_str());
 			if (v >= 5 && v <= 2000)
 				maxWindowMessageCount = v;
 
