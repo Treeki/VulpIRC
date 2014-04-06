@@ -195,6 +195,15 @@ void IRCServer::connectedEvent() {
 		config.nickname.c_str());
 
 	sendLine(buf);
+
+
+	// Initialise currentNick with the nick we *think* we have,
+	// because FurNet sends us a VERSION request as the very first
+	// thing-- before any other commands, including RPL_WELCOME
+	strncpy(currentNick, config.nickname.c_str(), sizeof(currentNick));
+	currentNick[sizeof(currentNick) - 1] = 0;
+
+	ircStringToLowercase(currentNick, currentNickLower, sizeof(currentNickLower));
 }
 void IRCServer::disconnectedEvent() {
 	printf("[IRCServer:%p] disconnectedEvent\n", this);
