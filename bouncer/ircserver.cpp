@@ -137,6 +137,21 @@ Channel *IRCServer::findChannel(const char *name, bool createIfNeeded) {
 		return check->second;
 	}
 }
+void IRCServer::deleteChannel(Channel *channel) {
+	// I sense some ugly code duplication going on here ._.;;
+	// TODO: Clean this up eventually...
+	char lowerName[512];
+	ircStringToLowercase(channel->name.c_str(), lowerName, sizeof(lowerName));
+
+	auto i = channels.find(lowerName);
+	if (i != channels.end()) {
+		bouncer->deregisterWindow(channel);
+
+		channels.erase(i);
+		delete channel;
+	}
+}
+
 Query *IRCServer::findQuery(const char *name, bool createIfNeeded) {
 	char lowerName[512];
 	ircStringToLowercase(name, lowerName, sizeof(lowerName));
@@ -162,7 +177,10 @@ Query *IRCServer::createQuery(const char *name) {
 }
 
 void IRCServer::deleteQuery(Query *query) {
-	auto i = queries.find(query->partner);
+	char lowerName[512];
+	ircStringToLowercase(query->partner.c_str(), lowerName, sizeof(lowerName));
+
+	auto i = queries.find(lowerName);
 	if (i != queries.end()) {
 		bouncer->deregisterWindow(query);
 

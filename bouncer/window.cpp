@@ -473,6 +473,15 @@ int Channel::getType() const {
 	return 2;
 }
 
+void Channel::handleUserClosed() {
+	if (inChannel) {
+		char buf[1024];
+		snprintf(buf, sizeof(buf), "PART %s :Leaving", name.c_str());
+		server->sendLine(buf);
+	} else
+		server->deleteChannel(this);
+}
+
 void Channel::handleCommand(const char *cmd, const char *args) {
 	char msgBuf[16384];
 

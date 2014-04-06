@@ -158,6 +158,7 @@ public:
 	virtual const char *getTitle() const;
 	virtual int getType() const;
 	virtual void syncStateForClient(Buffer &output);
+	virtual void handleUserClosed();
 
 	void handleNameReply(const char *str);
 	void handleJoin(const UserRef &user);
@@ -465,6 +466,7 @@ private:
 public:
 	Query *createQuery(const char *name);
 	// This probably *shouldn't* be public... ><
+	void deleteChannel(Channel *channel);
 	void deleteQuery(Query *query);
 
 	virtual void loadFromConfig(std::map<std::string, std::string> &data);
