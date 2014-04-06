@@ -453,7 +453,6 @@ private:
 
 
 	void resetIRCState();
-	void processISupport(const char *str);
 
 	Channel *findChannel(const char *name, bool createIfNeeded);
 	Query *findQuery(const char *name, bool createIfNeeded);
@@ -465,6 +464,65 @@ public:
 
 	virtual void loadFromConfig(std::map<std::string, std::string> &data);
 	virtual void saveToConfig(std::map<std::string, std::string> &data);
+
+private:
+	struct Numeric {
+		int numeric;
+		bool (IRCServer::*func)(char *args);
+	};
+	static Numeric numericDefs[];
+
+	const Numeric *resolveNumeric(int num) const;
+	bool dispatchNumeric(int numeric, char *args);
+
+	bool rpl_generic(char *args);
+	bool rpl_chanGeneric(char *args);
+
+	bool rpl_ISUPPORT(char *args);
+	bool RPL_UMODEIS(char *args);
+	bool RPL_STATSOLINE(char *args);
+	bool RPL_TRYAGAIN(char *args);
+	bool RPL_AWAY(char *args);
+	bool RPL_USERHOST(char *args);
+	bool RPL_ISON(char *args);
+	bool RPL_UNAWAY(char *args);
+	bool RPL_NOWAWAY(char *args);
+	bool RPL_WHOISUSER(char *args);
+	bool RPL_WHOISSERVER(char *args);
+	bool RPL_WHOISOPERATOR(char *args);
+	bool RPL_WHOWASUSER(char *args);
+	bool RPL_ENDOFWHO(char *args);
+	bool RPL_WHOISIDLE(char *args);
+	bool RPL_ENDOFWHOIS(char *args);
+	bool RPL_WHOISCHANNELS(char *args);
+	bool RPL_LISTSTART(char *args);
+	bool RPL_LIST(char *args);
+	bool RPL_LISTEND(char *args);
+	bool RPL_CHANNELMODEIS(char *args);
+	bool RPL_UNIQOPIS(char *args);
+	bool RPL_NOTOPIC(char *args);
+	bool RPL_TOPIC(char *args);
+	bool rpl_topicDetails(char *args);
+	bool RPL_INVITING(char *args);
+	bool RPL_SUMMONING(char *args);
+	bool RPL_WHOREPLY(char *args);
+	bool RPL_NAMREPLY(char *args);
+	bool RPL_ENDOFNAMES(char *args);
+	bool RPL_ENDOFWHOWAS(char *args);
+	bool RPL_TIME(char *args);
+	bool RPL_USERSSTART(char *args);
+	bool RPL_USERS(char *args);
+	bool RPL_ENDOFUSERS(char *args);
+	bool RPL_NOUSERS(char *args);
+	bool ERR_NOSUCHNICK(char *args);
+	bool ERR_NOSUCHSERVER(char *args);
+	bool ERR_NOSUCHCHANNEL(char *args);
+	bool ERR_CANNOTSENDTOCHAN(char *args);
+	bool ERR_TOOMANYCHANNELS(char *args);
+	bool ERR_WASNOSUCHNICK(char *args);
+	bool ERR_USERNOTINCHANNEL(char *args);
+	bool ERR_USERONCHANNEL(char *args);
+	bool ERR_NEEDMOREPARAMS(char *args);
 };
 
 

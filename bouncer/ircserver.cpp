@@ -537,86 +537,12 @@ void IRCServer::lineReceivedEvent(char *line, int size) {
 
 		strncpy(currentNick, targetBuf, sizeof(currentNick));
 		currentNick[sizeof(currentNick) - 1] = 0;
-		return;
+	}
 
-	} else if (strcmp(cmdBuf, "005") == 0) {
-		processISupport(paramsAfterFirst);
-		return;
-
-	} else if (strcmp(cmdBuf, "331") == 0) {
-		// RPL_NOTOPIC:
-		// Params: Channel name, *maybe* text we can ignore
-
-		char *space = strchr(paramsAfterFirst, ' ');
-		if (space)
-			*space = 0;
-
-		Channel *c = findChannel(paramsAfterFirst, false);
-		if (c) {
-			c->handleTopic(UserRef(), "");
+	int n = atoi(cmdBuf);
+	if ((n > 0) && (n <= 999) && (strlen(cmdBuf) == 3)) {
+		if (dispatchNumeric(n, paramsAfterFirst))
 			return;
-		}
-
-	} else if (strcmp(cmdBuf, "332") == 0) {
-		// RPL_TOPIC:
-		// Params: Channel name, text
-
-		char *space = strchr(paramsAfterFirst, ' ');
-		if (space) {
-			*space = 0;
-
-			char *topic = space + 1;
-			if (*topic == ':')
-				++topic;
-
-			Channel *c = findChannel(paramsAfterFirst, false);
-			if (c) {
-				c->handleTopic(UserRef(), topic);
-				return;
-			}
-		}
-
-	} else if (strcmp(cmdBuf, "333") == 0) {
-		// Topic set
-
-		char *strtok_var;
-		char *chanName = strtok_r(paramsAfterFirst, " ", &strtok_var);
-		char *setBy = strtok_r(NULL, " ", &strtok_var);
-		char *when = strtok_r(NULL, " ", &strtok_var);
-
-		if (chanName && setBy && when) {
-			Channel *c = findChannel(chanName, false);
-
-			if (c) {
-				c->handleTopicInfo(setBy, atoi(when));
-				return;
-			}
-		}
-
-	} else if (strcmp(cmdBuf, "353") == 0) {
-		// RPL_NAMEREPLY:
-		// Target is always us
-		// Params: Channel privacy flag, channel, user list
-
-		char *space1 = strchr(paramsAfterFirst, ' ');
-		if (space1) {
-			char *space2 = strchr(space1 + 1, ' ');
-			if (space2) {
-				char *chanName = space1 + 1;
-				*space2 = 0;
-
-				char *userNames = space2 + 1;
-				if (*userNames == ':')
-					++userNames;
-
-				Channel *c = findChannel(chanName, false);
-
-				if (c) {
-					c->handleNameReply(userNames);
-					return;
-				}
-			}
-		}
 	}
 
 	char tmpstr[2048];
@@ -634,81 +560,7 @@ void IRCServer::lineReceivedEvent(char *line, int size) {
 }
 
 
-void IRCServer::processISupport(const char *line) {
-	while (*line != 0) {
-		char keyBuf[512], valueBuf[512];
-		int keyPos = 0, valuePos = 0;
-		int phase = 0;
 
-		// This means we've reached the end
-		if (*line == ':')
-			return;
-
-		while ((*line != 0) && (*line != ' ')) {
-			if (phase == 0) {
-				if (*line == '=')
-					phase = 1;
-				else if (keyPos < 511)
-					keyBuf[keyPos++] = *line;
-			} else {
-				if (valuePos < 511)
-					valueBuf[valuePos++] = *line;
-			}
-
-			++line;
-		}
-
-		if (*line == ' ')
-			++line;
-
-		keyBuf[keyPos] = 0;
-		valueBuf[valuePos] = 0;
-
-
-		// Now process the thing
-
-		if (strcmp(keyBuf, "PREFIX") == 0) {
-			int prefixCount = (valuePos - 2) / 2;
-
-			if (valueBuf[0] == '(' && valueBuf[1+prefixCount] == ')') {
-				if (prefixCount < 32) {
-					strncpy(serverPrefixMode, &valueBuf[1], prefixCount);
-					strncpy(serverPrefix, &valueBuf[2+prefixCount], prefixCount);
-
-					serverPrefixMode[prefixCount] = 0;
-					serverPrefix[prefixCount] = 0;
-				}
-			}
-		} else if (strcmp(keyBuf, "CHANMODES") == 0) {
-			char *proc = &valueBuf[0];
-
-			for (int index = 0; index < 4; index++) {
-				if (*proc == 0)
-					break;
-
-				char *start = proc;
-				char *end = proc;
-
-				while ((*end != ',') && (*end != 0))
-					++end;
-
-				// If this is a zero, we can't read any more
-				bool endsHere = (*end == 0);
-				*end = 0;
-
-				serverChannelModes[index] = start;
-				char moof[1000];
-				sprintf(moof, "set chanmodes %d to [%s]", index, serverChannelModes[index].c_str());
-				status.pushMessage(moof);
-
-				if (endsHere)
-					break;
-				else
-					proc = end + 1;
-			}
-		}
-	}
-}
 
 
 uint32_t IRCServer::getUserFlag(char search, const char *array) const {
