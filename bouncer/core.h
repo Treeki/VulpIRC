@@ -417,7 +417,7 @@ public:
 
 	IRCNetworkConfig config;
 
-	char currentNick[128];
+	char currentNick[128], currentNickLower[128];
 	char serverPrefix[32], serverPrefixMode[32];
 	std::string serverChannelModes[4];
 

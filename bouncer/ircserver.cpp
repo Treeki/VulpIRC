@@ -111,6 +111,7 @@ void IRCServer::scheduleReconnect() {
 
 void IRCServer::resetIRCState() {
 	strcpy(currentNick, "");
+	strcpy(currentNickLower, "");
 
 	strcpy(serverPrefix, "@+");
 	strcpy(serverPrefixMode, "ov");
@@ -372,6 +373,8 @@ void IRCServer::lineReceivedEvent(char *line, int size) {
 			strncpy(currentNick, allParams, sizeof(currentNick));
 			currentNick[sizeof(currentNick) - 1] = 0;
 
+			ircStringToLowercase(currentNick, currentNickLower, sizeof(currentNickLower));
+
 			char buf[1024];
 			snprintf(buf, 1024, "You are now known as %s", currentNick);
 			status.pushMessage(buf);
@@ -500,7 +503,11 @@ void IRCServer::lineReceivedEvent(char *line, int size) {
 		}
 
 
-		if (strcmp(targetBuf, currentNick) == 0) {
+
+		char targetBufLower[512];
+		ircStringToLowercase(targetBuf, targetBufLower, 512);
+
+		if (strcmp(targetBufLower, currentNickLower) == 0) {
 			Query *q = findQuery(user.nick.c_str(), requireQueryWindow);
 			if (q) {
 				if (ctcpType)
@@ -537,6 +544,8 @@ void IRCServer::lineReceivedEvent(char *line, int size) {
 
 		strncpy(currentNick, targetBuf, sizeof(currentNick));
 		currentNick[sizeof(currentNick) - 1] = 0;
+
+		ircStringToLowercase(currentNick, currentNickLower, sizeof(currentNickLower));
 	}
 
 	int n = atoi(cmdBuf);
