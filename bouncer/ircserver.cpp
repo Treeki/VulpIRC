@@ -617,6 +617,7 @@ char IRCServer::getEffectivePrefixChar(uint32_t modes) const {
 
 
 void IRCServer::loadFromConfig(std::map<std::string, std::string> &data) {
+	config.title = data["title"];
 	config.hostname = data["hostname"];
 	config.username = data["username"];
 	config.realname = data["realname"];
@@ -629,6 +630,7 @@ void IRCServer::loadFromConfig(std::map<std::string, std::string> &data) {
 
 void IRCServer::saveToConfig(std::map<std::string, std::string> &data) {
 	data["type"] = "IRCServer";
+	data["title"] = config.title;
 	data["hostname"] = config.hostname;
 	data["username"] = config.username;
 	data["realname"] = config.realname;

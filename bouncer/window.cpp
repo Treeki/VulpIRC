@@ -335,10 +335,12 @@ StatusWindow::StatusWindow(IRCServer *_server) : IRCWindow(_server)
 }
 
 const char *StatusWindow::getTitle() const {
-	if (server->config.hostname.size() == 0)
-		return "<New Server>";
-	else
+	if (server->config.title.size() != 0)
+		return server->config.title.c_str();
+	else if (server->config.hostname.size() != 0)
 		return server->config.hostname.c_str();
+	else
+		return "<New Server>";
 }
 
 int StatusWindow::getType() const {
@@ -432,6 +434,16 @@ void StatusWindow::handleCommand(const char *cmd, const char *args) {
 			pushMessage("Server password changed.");
 		else
 			pushMessage("Server password cleared.");
+
+	} else if (strcmp(cmd, "title") == 0) {
+		server->config.title = args;
+
+		if (server->config.title.size() > 0)
+			pushMessage("Server title changed.");
+		else
+			pushMessage("Server title cleared.");
+
+		notifyWindowRename();
 
 	} else {
 		IRCWindow::handleCommand(cmd, args);

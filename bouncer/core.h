@@ -392,6 +392,7 @@ private:
 };
 
 struct IRCNetworkConfig {
+	std::string title;
 	std::string hostname, username, realname;
 	std::string nickname, altNick;
 	std::string password;
