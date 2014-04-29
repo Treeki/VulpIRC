@@ -73,13 +73,13 @@ void Client::startService(int _sock, bool withTls) {
 
 		tlsActive = true;
 
-		state = CS_TLS_HANDSHAKE;
+		setState(CS_TLS_HANDSHAKE);
 
 		printf("[fd=%d] preparing for TLS handshake\n", sock);
 	} else
 #endif
 	{
-		state = CS_CONNECTED;
+		setState(CS_CONNECTED);
 	}
 }
 
@@ -282,14 +282,14 @@ void Client::resumeSession(Client *other, int lastReceivedByClient) {
 	outputBuf.append(other->outputBuf.data(), other->outputBuf.size());
 
 	sock = other->sock;
-	state = other->state;
+	_state = other->_state;
 #ifdef USE_GNUTLS
 	tls = other->tls;
 	tlsActive = other->tlsActive;
 #endif
 
 	other->sock = -1;
-	other->state = CS_DISCONNECTED;
+	other->_state = CS_DISCONNECTED;
 #ifdef USE_GNUTLS
 	other->tls = 0;
 	other->tlsActive = false;
@@ -324,7 +324,7 @@ void Client::sendPacket(Packet::Type type, const Buffer &data, bool allowUnauthe
 		nextPacketID++;
 	}
 
-	if (state == CS_CONNECTED)
+	if (state() == CS_CONNECTED)
 		if (authState == AS_AUTHED || allowUnauthed)
 			sendPacketOverWire(packet);
 

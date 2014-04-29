@@ -11,6 +11,7 @@ NetCore::NetCore() {
 		servers[i] = NULL;
 
 	nextWindowID = 1;
+	nextServerID = 1;
 }
 
 Client *NetCore::findClientWithSessionKey(uint8_t *key) const {
@@ -25,25 +26,57 @@ int NetCore::registerServer(Server *server) {
 	if (serverCount >= SERVER_LIMIT)
 		return -1;
 
-	int id = serverCount++;
-	servers[id] = server;
+	server->id = nextServerID;
+	nextServerID++;
+
+	int index = serverCount++;
+	servers[index] = server;
 	server->attachedToCore();
-	return id;
+
+	// tell clients
+	Buffer pkt;
+	pkt.writeU32(1);
+	server->syncStateForClient(pkt);
+	sendToClients(Packet::B2C_SERVER_ADD, pkt);
+
+	return index;
 }
-void NetCore::deregisterServer(int id) {
-	Server *server = servers[id];
+void NetCore::deregisterServer(Server *server) {
+	int index = -1;
+	for (int i = 0; i < serverCount; i++) {
+		if (servers[i] == server) {
+			index = i;
+			break;
+		}
+	}
+
+	if (index == -1)
+		return;
+
+	// tell clients
+	Buffer pkt;
+	pkt.writeU32(1);
+	pkt.writeU32(server->id);
+	sendToClients(Packet::B2C_SERVER_REMOVE, pkt);
+
+	// get rid of it from our end!
 	server->close();
 	delete server;
 
 	serverCount--;
-	servers[id] = servers[serverCount];
+	servers[index] = servers[serverCount];
 }
-int NetCore::findServerID(Server *server) const {
-	for (int i = 0; i < SERVER_LIMIT; i++)
-		if (servers[i] == server)
-			return i;
-	return -1;
+
+
+Server *NetCore::findServer(int id) const {
+	for (int i = 0; i < serverCount; i++)
+		if (servers[i]->id == id)
+			return servers[i];
+
+	return 0;
 }
+
+
 
 int NetCore::execute() {
 	// prepare the listen socket
@@ -97,7 +130,7 @@ int NetCore::execute() {
 
 		for (int i = 0; i < clientCount; i++) {
 #ifdef USE_GNUTLS
-			if (clients[i]->state == Client::CS_TLS_HANDSHAKE)
+			if (clients[i]->state() == Client::CS_TLS_HANDSHAKE)
 				clients[i]->tryTLSHandshake();
 #endif
 
@@ -105,7 +138,7 @@ int NetCore::execute() {
 				if (clients[i]->sock > maxFD)
 					maxFD = clients[i]->sock;
 
-				if (clients[i]->state == Client::CS_CONNECTED)
+				if (clients[i]->state() == Client::CS_CONNECTED)
 					FD_SET(clients[i]->sock, &readSet);
 				if (clients[i]->outputBuf.size() > 0)
 					FD_SET(clients[i]->sock, &writeSet);
@@ -137,15 +170,15 @@ int NetCore::execute() {
 		}
 
 		for (int i = 0; i < serverCount; i++) {
-			if (servers[i]->state == Server::CS_DISCONNECTED) {
+			if (servers[i]->state() == Server::CS_DISCONNECTED) {
 				time_t reconTime = servers[i]->getReconnectTime();
 				if ((reconTime != 0) && (now > reconTime))
 					servers[i]->doReconnect();
 
-			} else if (servers[i]->state == Server::CS_WAITING_DNS)
+			} else if (servers[i]->state() == Server::CS_WAITING_DNS)
 				servers[i]->tryConnectPhase();
 #ifdef USE_GNUTLS
-			else if (servers[i]->state == Server::CS_TLS_HANDSHAKE) {
+			else if (servers[i]->state() == Server::CS_TLS_HANDSHAKE) {
 				if (servers[i]->tryTLSHandshake())
 					servers[i]->connectedEvent();
 			}
@@ -155,9 +188,9 @@ int NetCore::execute() {
 				if (servers[i]->sock > maxFD)
 					maxFD = servers[i]->sock;
 
-				if (servers[i]->state == Server::CS_CONNECTED)
+				if (servers[i]->state() == Server::CS_CONNECTED)
 					FD_SET(servers[i]->sock, &readSet);
-				if (servers[i]->outputBuf.size() > 0 || servers[i]->state == Server::CS_WAITING_CONNECT)
+				if (servers[i]->outputBuf.size() > 0 || servers[i]->state() == Server::CS_WAITING_CONNECT)
 					FD_SET(servers[i]->sock, &writeSet);
 			}
 		}
@@ -192,7 +225,7 @@ int NetCore::execute() {
 				if (FD_ISSET(servers[i]->sock, &writeSet)) {
 					Server *server = servers[i];
 
-					if (server->state == Server::CS_WAITING_CONNECT) {
+					if (server->state() == Server::CS_WAITING_CONNECT) {
 						// Welp, this means we're connected!
 						// Maybe.
 						// We might have an error condition, in which case,
@@ -301,9 +334,7 @@ int NetCore::registerWindow(Window *window) {
 	pkt.writeU32(1);
 	window->syncStateForClient(pkt);
 
-	for (int i = 0; i < clientCount; i++)
-		if (clients[i]->isAuthed())
-			clients[i]->sendPacket(Packet::B2C_WINDOW_ADD, pkt);
+	sendToClients(Packet::B2C_WINDOW_ADD, pkt);
 
 	return window->id;
 }
@@ -313,9 +344,7 @@ void NetCore::deregisterWindow(Window *window) {
 	pkt.writeU32(1);
 	pkt.writeU32(window->id);
 
-	for (int i = 0; i < clientCount; i++)
-		if (clients[i]->isAuthed())
-			clients[i]->sendPacket(Packet::B2C_WINDOW_REMOVE, pkt);
+	sendToClients(Packet::B2C_WINDOW_REMOVE, pkt);
 
 	windows.remove(window);
 }

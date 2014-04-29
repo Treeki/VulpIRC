@@ -56,7 +56,7 @@ typedef SSIZE_T ssize_t;
 
 #define SESSION_KEY_SIZE 16
 
-#define PROTOCOL_VERSION 2
+#define PROTOCOL_VERSION 3
 
 #define SERVE_VIA_TLS false
 
@@ -222,11 +222,6 @@ public:
 
 	friend class NetCore;
 
-protected:
-	NetCore *netCore;
-
-	Buffer inputBuf, outputBuf;
-
 	enum ConnState {
 		CS_DISCONNECTED = 0,
 		CS_WAITING_DNS = 1, // server only
@@ -234,7 +229,15 @@ protected:
 		CS_TLS_HANDSHAKE = 3,
 		CS_CONNECTED = 4
 	};
-	ConnState state;
+
+protected:
+	NetCore *netCore;
+
+	Buffer inputBuf, outputBuf;
+
+	ConnState _state;
+	void setState(ConnState v);
+	virtual void connectionStateChangedEvent() { }
 
 	int sock;
 #ifdef USE_GNUTLS
@@ -247,6 +250,8 @@ public:
 	virtual ~SocketRWCommon();
 
 	virtual void close();
+
+	ConnState state() const { return _state; }
 
 private:
 #ifdef USE_GNUTLS
@@ -268,6 +273,9 @@ struct Packet {
 		C2B_COMMAND = 1,
 		B2C_STATUS = 1,
 
+		B2C_SYNC = 0x80,
+		B2C_SYNC_COMPRESSED = 0x81,
+
 		B2C_WINDOW_ADD = 0x100,
 		B2C_WINDOW_REMOVE = 0x101,
 		B2C_WINDOW_MESSAGE = 0x102,
@@ -282,6 +290,14 @@ struct Packet {
 		B2C_CHANNEL_USER_RENAME = 0x122,
 		B2C_CHANNEL_USER_MODES = 0x123,
 		B2C_CHANNEL_TOPIC = 0x124,
+
+		B2C_SERVER_ADD = 0x140,
+		B2C_SERVER_REMOVE = 0x141,
+		B2C_SERVER_CONNSTATE = 0x142,
+		B2C_SERVER_CONFIG = 0x143,
+
+		C2B_SERVER_CONNSTATE = 0x142,
+		C2B_SERVER_CONFIG = 0x143,
 
 		C2B_OOB_LOGIN = 0x8001,
 
@@ -369,12 +385,23 @@ public:
 	virtual void loadFromConfig(std::map<std::string, std::string> &data) = 0;
 	virtual void saveToConfig(std::map<std::string, std::string> &data) = 0;
 
+	void syncStateForClient(Buffer &output);
+	virtual void _syncStateForClientInternal(Buffer &output) { }
+	virtual void handleServerConnStateChange(int action) = 0;
+	virtual void handleServerConfigUpdate(Buffer &buf) = 0;
+
+	virtual const char *getTypeName() = 0;
+
+	int id;
+
 protected:
 	void connect(const char *hostname, int _port, bool _useTls);
 
 public:
 	void sendLine(const char *line); // protect me!
 	void close();
+
+	using SocketRWCommon::state;
 
 private:
 	void tryConnectPhase();
@@ -406,6 +433,9 @@ struct IRCNetworkConfig {
 		port = 6667;
 		useTls = false;
 	}
+
+	void writeToBuffer(Buffer &out) const;
+	void readFromBuffer(Buffer &in);
 };
 
 class IRCServer : public Server {
@@ -440,6 +470,13 @@ public:
 	virtual time_t getReconnectTime() const { return reconnectTime; }
 	virtual void doReconnect();
 
+	void notifyConfigChanged();
+	virtual void _syncStateForClientInternal(Buffer &output);
+	virtual void handleServerConnStateChange(int action);
+	virtual void handleServerConfigUpdate(Buffer &buf);
+
+	virtual const char *getTypeName() { return "IRCServer"; }
+
 	// Events!
 private:
 	// set to true when user requests to connect, set to false when
@@ -454,6 +491,7 @@ private:
 	virtual void connectionErrorEvent();
 	virtual void disconnectedEvent();
 	virtual void lineReceivedEvent(char *line, int size);
+	virtual void connectionStateChangedEvent();
 
 	virtual void attachedToCore();
 
@@ -546,6 +584,7 @@ public:
 
 	std::list<Window *> windows;
 	int nextWindowID;
+	int nextServerID;
 
 	int registerWindow(Window *window);
 	void deregisterWindow(Window *window);
@@ -568,10 +607,10 @@ public:
 	void loadConfig();
 	void saveConfig();
 
+	Server *findServer(int id) const;
 	int registerServer(Server *server); // THIS FUNCTION WILL BE PROTECTED LATER
 protected:
-	void deregisterServer(int id);
-	int findServerID(Server *server) const;
+	void deregisterServer(Server *server);
 };
 
 class Bouncer : public NetCore {

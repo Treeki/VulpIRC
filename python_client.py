@@ -32,7 +32,7 @@ PRESET_COLOURS = [
 	QtGui.QColor( 51,102,153), # COL_CHANNEL_NOTICE = 23,
 ]
 
-protocolVer = 2
+protocolVer = 3
 sock = None
 authed = False
 sessionKey = b'\0'*16
@@ -452,8 +452,8 @@ class MainWindow(QtWidgets.QMainWindow):
 				strlen = u32.unpack_from(pdata, 0)[0]
 				msg = pdata[4:4+strlen].decode('utf-8', 'replace')
 				self.debugTab.pushMessage(msg, 0)
-			elif ptype == 0x100 or ptype == 0x104:
-				if ptype == 0x104:
+			elif ptype == 0x100 or ptype == 0x104 or ptype == 0x80 or ptype == 0x81:
+				if ptype == 0x104 or ptype == 0x81:
 					pdata = zlib.decompress(pdata[8:])
 				# ADD WINDOWS
 				wndCount = u32.unpack_from(pdata, 0)[0]

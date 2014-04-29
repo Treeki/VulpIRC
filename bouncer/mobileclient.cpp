@@ -44,6 +44,11 @@ void MobileClient::sessionStartEvent() {
 	for (; i != e; ++i)
 		(*i)->syncStateForClient(syncPacket);
 
+	syncPacket.writeU32(bouncer->serverCount);
+
+	for (int i = 0; i < bouncer->serverCount; i++)
+		bouncer->servers[i]->syncStateForClient(syncPacket);
+
 #ifdef USE_ZLIB
 	Buffer deflatedSync;
 	bool didCompress = ZlibWrapper::compress(syncPacket, deflatedSync);
@@ -77,9 +82,9 @@ void MobileClient::sessionStartEvent() {
 
 	// and finally, send the sync data over
 #ifdef USE_ZLIB
-	sendPacket(Packet::B2C_WINDOW_ADD_COMPRESSED, deflatedSync);
+	sendPacket(Packet::B2C_SYNC_COMPRESSED, deflatedSync);
 #else
-	sendPacket(Packet::B2C_WINDOW_ADD, syncPacket);
+	sendPacket(Packet::B2C_SYNC, syncPacket);
 #endif
 
 	rt.clear();
@@ -125,6 +130,27 @@ void MobileClient::packetReceivedEvent(Packet::Type type, Buffer &pkt) {
 		}
 
 		window->handleUserClosed();
+
+	} else if (type == Packet::C2B_SERVER_CONNSTATE) {
+		int serverID = pkt.readU32();
+		int action = pkt.readU8();
+		Server *server = bouncer->findServer(serverID);
+		if (!server) {
+			printf("[MobileClient:%p] Server connection state change request for unknown server %d\n", this, serverID);
+			return;
+		}
+
+		server->handleServerConnStateChange(action);
+
+	} else if (type == Packet::C2B_SERVER_CONFIG) {
+		int serverID = pkt.readU32();
+		Server *server = bouncer->findServer(serverID);
+		if (!server) {
+			printf("[MobileClient:%p] Server config update request for unknown server %d\n", this, serverID);
+			return;
+		}
+
+		server->handleServerConfigUpdate(pkt);
 
 	} else {
 		printf("[MobileClient:%p] Unrecognised packet for MobileClient: type %d, size %d\n",

@@ -1,5 +1,34 @@
 #include "core.h"
 
+// This really could stand to go in a better place...
+void IRCNetworkConfig::writeToBuffer(Buffer &out) const {
+	out.writeStr(title.c_str());
+	out.writeStr(hostname.c_str());
+	out.writeStr(username.c_str());
+	out.writeStr(realname.c_str());
+	out.writeStr(nickname.c_str());
+	out.writeStr(altNick.c_str());
+	out.writeStr(password.c_str());
+	out.writeU32(port);
+	out.writeU8(useTls ? 1 : 0);
+}
+void IRCNetworkConfig::readFromBuffer(Buffer &in) {
+	char bits[1024];
+
+	in.readStr(bits, sizeof(bits)); title = bits;
+	in.readStr(bits, sizeof(bits)); hostname = bits;
+	in.readStr(bits, sizeof(bits)); username = bits;
+	in.readStr(bits, sizeof(bits)); realname = bits;
+	in.readStr(bits, sizeof(bits)); nickname = bits;
+	in.readStr(bits, sizeof(bits)); altNick = bits;
+	in.readStr(bits, sizeof(bits)); password = bits;
+	port = in.readU32();
+	useTls = (in.readU8() != 0);
+}
+
+
+
+
 /*static*/ void IRCServer::ircStringToLowercase(const char *in, char *out, int outSize) {
 	int i = 0;
 
@@ -106,6 +135,16 @@ void IRCServer::scheduleReconnect() {
 	status.pushMessage(buf);
 
 	connectionAttempt++;
+}
+
+
+void IRCServer::connectionStateChangedEvent() {
+	Buffer pkt;
+	pkt.writeU32(id);
+	pkt.writeU32((int)state());
+
+	bouncer->sendToClients(
+		Packet::B2C_SERVER_CONNSTATE, pkt);
 }
 
 
@@ -678,4 +717,42 @@ void IRCServer::saveToConfig(std::map<std::string, std::string> &data) {
 	char portstr[50];
 	snprintf(portstr, sizeof(portstr), "%d", config.port);
 	data["port"] = portstr;
+}
+
+void IRCServer::notifyConfigChanged() {
+	Buffer pkt;
+	pkt.writeU32(id);
+	config.writeToBuffer(pkt);
+
+	bouncer->sendToClients(
+		Packet::B2C_SERVER_CONFIG, pkt);
+}
+
+void IRCServer::_syncStateForClientInternal(Buffer &output) {
+	output.writeU32(state());
+	output.writeU32(status.id);
+	config.writeToBuffer(output);
+}
+
+void IRCServer::handleServerConnStateChange(int action) {
+	// TODO: present these errors in a prettier way
+
+	if (action == 1) {
+		if (config.nickname.size() == 0) {
+			status.pushMessage("Use /defaultnick <name> to set a nickname");
+		} else if (config.altNick.size() == 0) {
+			status.pushMessage("Use /altnick <name> to set an alternate nickname");
+		} else if (config.hostname.size() == 0) {
+			status.pushMessage("Use /server <name> to set an IRC server to connect to");
+		} else {
+			requestConnect();
+		}
+	} else if (action == 2) {
+		requestDisconnect();
+	}
+}
+
+void IRCServer::handleServerConfigUpdate(Buffer &buf) {
+	config.readFromBuffer(buf);
+	notifyConfigChanged();
 }

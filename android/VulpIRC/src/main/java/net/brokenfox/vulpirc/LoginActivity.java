@@ -110,7 +110,7 @@ public class LoginActivity extends Activity implements Connection.LoginStateList
 			errorView = mInputUsername;
 		}
 
-		if (port < 0 || port > 65535) {
+		if (port < 1 || port > 65535) {
 			mInputPort.setError("Invalid");
 			errorView = mInputPort;
 		}

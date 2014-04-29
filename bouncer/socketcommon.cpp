@@ -27,7 +27,7 @@
 SocketRWCommon::SocketRWCommon(NetCore *_netCore) {
 	netCore = _netCore;
 	sock = -1;
-	state = CS_DISCONNECTED;
+	_state = CS_DISCONNECTED;
 #ifdef USE_GNUTLS
 	tlsActive = false;
 #endif
@@ -35,6 +35,13 @@ SocketRWCommon::SocketRWCommon(NetCore *_netCore) {
 SocketRWCommon::~SocketRWCommon() {
 	close();
 }
+
+
+void SocketRWCommon::setState(ConnState v) {
+	_state = v;
+	connectionStateChangedEvent();
+}
+
 
 #ifdef USE_GNUTLS
 bool SocketRWCommon::hasTlsPendingData() const {
@@ -55,7 +62,7 @@ bool SocketRWCommon::tryTLSHandshake() {
 
 	if (hsRet == GNUTLS_E_SUCCESS) {
 		// We're in !!
-		state = CS_CONNECTED;
+		setState(CS_CONNECTED);
 
 		inputBuf.clear();
 		outputBuf.clear();
@@ -87,7 +94,7 @@ void SocketRWCommon::close() {
 	sock = -1;
 	inputBuf.clear();
 	outputBuf.clear();
-	state = CS_DISCONNECTED;
+	setState(CS_DISCONNECTED);
 
 #ifdef USE_GNUTLS
 	if (tlsActive) {

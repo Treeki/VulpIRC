@@ -90,9 +90,17 @@ public class MainActivity extends FragmentActivity implements Connection.Connect
 	}
 
 	@Override
-	public void handleWindowsUpdated() {
+	public void handlePublicWindowsUpdated() {
 		mWindowPagerAdapter.notifyDataSetChanged();
 		mWindowListAdapter.notifyDataSetChanged();
+	}
+	@Override
+	public void handleServerWindowsUpdated() {
+		// nothing here
+	}
+	@Override
+	public void handleServersUpdated() {
+		// nothing here
 	}
 
 	@Override
@@ -167,7 +175,7 @@ public class MainActivity extends FragmentActivity implements Connection.Connect
 			if (position == 0)
 				Connection.get().setActiveWindow(Connection.get().statusWindow);
 			else
-				Connection.get().setActiveWindow(Connection.get().windows.get(position - 1));
+				Connection.get().setActiveWindow(Connection.get().publicWindows.get(position - 1));
 
 			Log.i("VulpIRC", "Boop2 : " + Connection.get().getActiveWindow().title);
 			fixActionBarTitle();
@@ -220,7 +228,7 @@ public class MainActivity extends FragmentActivity implements Connection.Connect
 	private class WindowListAdapter extends BaseAdapter implements ListAdapter {
 		@Override
 		public int getCount() {
-			return 1 + Connection.get().windows.size();
+			return 1 + Connection.get().publicWindows.size();
 		}
 
 		@Override
@@ -228,7 +236,7 @@ public class MainActivity extends FragmentActivity implements Connection.Connect
 			if (i == 0)
 				return "boop";
 			else
-				return Connection.get().windows.get(i - 1);
+				return Connection.get().publicWindows.get(i - 1);
 		}
 
 		@Override
@@ -236,7 +244,7 @@ public class MainActivity extends FragmentActivity implements Connection.Connect
 			if (i == 0)
 				return -1;
 			else
-				return Connection.get().windows.get(i - 1).id;
+				return Connection.get().publicWindows.get(i - 1).id;
 		}
 
 		@Override
@@ -252,7 +260,7 @@ public class MainActivity extends FragmentActivity implements Connection.Connect
 			if (i == 0)
 				iv.setWindow(Connection.get().statusWindow);
 			else
-				iv.setWindow(Connection.get().windows.get(i - 1));
+				iv.setWindow(Connection.get().publicWindows.get(i - 1));
 			return iv;
 		}
 	}
@@ -268,7 +276,7 @@ public class MainActivity extends FragmentActivity implements Connection.Connect
 			if (i == 0)
 				window = Connection.get().statusWindow;
 			else
-				window = Connection.get().windows.get(i - 1);
+				window = Connection.get().publicWindows.get(i - 1);
 
 			return window.createFragment();
 		}
@@ -278,7 +286,7 @@ public class MainActivity extends FragmentActivity implements Connection.Connect
 			if (position == 0)
 				return -1;
 			else
-				return Connection.get().windows.get(position - 1).id;
+				return Connection.get().publicWindows.get(position - 1).id;
 		}
 
 		@Override
@@ -286,12 +294,12 @@ public class MainActivity extends FragmentActivity implements Connection.Connect
 			if (position == 0)
 				return "Status";
 			else
-				return Connection.get().windows.get(position - 1).title;
+				return Connection.get().publicWindows.get(position - 1).title;
 		}
 
 		@Override
 		public int getCount() {
-			return 1 + Connection.get().windows.size();
+			return 1 + Connection.get().publicWindows.size();
 		}
 	}
 

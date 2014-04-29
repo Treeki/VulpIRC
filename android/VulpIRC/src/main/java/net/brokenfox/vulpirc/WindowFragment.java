@@ -19,7 +19,7 @@ import android.widget.*;
  */
 public class WindowFragment extends Fragment implements WindowData.WindowListener, TextView.OnEditorActionListener {
 	private MessagesAdapter mMessagesAdapter;
-	private ListView mMessagesList;
+	protected ListView mMessagesList;
 	private EditText mInput;
 	protected WindowData mData = null;
 

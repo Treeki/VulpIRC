@@ -42,7 +42,7 @@ void Server::sendLine(const char *line) {
 
 
 void Server::connect(const char *hostname, int _port, bool _useTls) {
-	if (state == CS_DISCONNECTED) {
+	if (state() == CS_DISCONNECTED) {
 		port = _port;
 		useTls = _useTls;
 
@@ -53,13 +53,13 @@ void Server::connect(const char *hostname, int _port, bool _useTls) {
 			// TODO: better error reporting
 			printf("DNS query failed!\n");
 		} else {
-			state = CS_WAITING_DNS;
+			setState(CS_WAITING_DNS);
 		}
 	}
 }
 
 void Server::tryConnectPhase() {
-	if (state == CS_WAITING_DNS) {
+	if (state() == CS_WAITING_DNS) {
 		in_addr result;
 		bool isError;
 
@@ -69,7 +69,7 @@ void Server::tryConnectPhase() {
 
 			if (isError) {
 				printf("DNS query failed at phase 2!\n");
-				state = CS_DISCONNECTED;
+				setState(CS_DISCONNECTED);
 			} else {
 				// OK, if there was no error, we can go ahead and do this...
 
@@ -99,7 +99,7 @@ void Server::tryConnectPhase() {
 					if (errno == EINPROGRESS)
 #endif
 					{
-						state = CS_WAITING_CONNECT;
+						setState(CS_WAITING_CONNECT);
 					} else {
 						perror("[Server] Could not connect");
 						close();
@@ -114,7 +114,7 @@ void Server::tryConnectPhase() {
 }
 
 void Server::connectionSuccessful() {
-	state = CS_CONNECTED;
+	setState(CS_CONNECTED);
 
 	inputBuf.clear();
 	outputBuf.clear();
@@ -122,7 +122,7 @@ void Server::connectionSuccessful() {
 	// Do we need to do any TLS junk?
 #ifdef USE_GNUTLS
 	if (useTls) {
-		state = CS_TLS_HANDSHAKE;
+		setState(CS_TLS_HANDSHAKE);
 
 		int initRet = gnutls_init(&tls, GNUTLS_CLIENT);
 		if (initRet != GNUTLS_E_SUCCESS) {
@@ -149,7 +149,7 @@ void Server::connectionSuccessful() {
 }
 
 void Server::close() {
-	int saveState = state;
+	int saveState = state();
 
 	SocketRWCommon::close();
 
@@ -165,3 +165,13 @@ void Server::close() {
 }
 
 
+
+void Server::syncStateForClient(Buffer &output) {
+	Buffer temp;
+	_syncStateForClientInternal(temp);
+
+	output.writeU32(id);
+	output.writeStr(getTypeName());
+	output.writeU32(temp.size());
+	output.append(temp);
+}

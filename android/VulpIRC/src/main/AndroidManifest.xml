@@ -16,36 +16,52 @@
         android:label="@string/app_name"
         android:theme="@style/AppTheme" >
         <activity
-            android:name=".MainActivity"
-            android:launchMode="singleTask"
-            android:label="@string/app_name" >
+            android:name="net.brokenfox.vulpirc.MainActivity"
+            android:label="@string/app_name"
+            android:launchMode="singleTask" >
         </activity>
 
         <service android:name="net.brokenfox.vulpirc.IRCService" />
 
         <activity
             android:name="net.brokenfox.vulpirc.LoginActivity"
-            android:launchMode="singleTask"
             android:label="VulpIRC"
+            android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize|stateVisible" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
 
-	        <intent-filter>
-		        <action android:name="android.intent.action.MAIN" />
-
-		        <category android:name="android.intent.category.LAUNCHER" />
-		        <category android:name="android.intent.category.MULTIWINDOW_LAUNCHER" />
-	        </intent-filter>
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.MULTIWINDOW_LAUNCHER" />
+            </intent-filter>
         </activity>
 
-	    <uses-library
-			    android:required="false"
-			    android:name="com.sec.android.app.multiwindow">
-			    </uses-library>
-	    <meta-data android:name="com.sec.android.support.multiwindow" android:value="true" />
-	    <meta-data android:name="com.sec.android.multiwindow.DEFAULT_SIZE_W" android:resource="@dimen/app_defaultsize_w" />
-		<meta-data android:name="com.sec.android.multiwindow.DEFAULT_SIZE_H" android:resource="@dimen/app_defaultsize_h" />
-		<meta-data android:name="com.sec.android.multiwindow.MINIMUM_SIZE_W" android:resource="@dimen/app_minimumsize_w" />
-		<meta-data android:name="com.sec.android.multiwindow.MINIMUM_SIZE_H" android:resource="@dimen/app_minimumsize_h" />
+        <uses-library
+            android:name="com.sec.android.app.multiwindow"
+            android:required="false" >
+        </uses-library>
+
+        <meta-data
+            android:name="com.sec.android.support.multiwindow"
+            android:value="true" />
+        <meta-data
+            android:name="com.sec.android.multiwindow.DEFAULT_SIZE_W"
+            android:resource="@dimen/app_defaultsize_w" />
+        <meta-data
+            android:name="com.sec.android.multiwindow.DEFAULT_SIZE_H"
+            android:resource="@dimen/app_defaultsize_h" />
+        <meta-data
+            android:name="com.sec.android.multiwindow.MINIMUM_SIZE_W"
+            android:resource="@dimen/app_minimumsize_w" />
+        <meta-data
+            android:name="com.sec.android.multiwindow.MINIMUM_SIZE_H"
+            android:resource="@dimen/app_minimumsize_h" />
+
+        <activity
+            android:name="net.brokenfox.vulpirc.ServerActivity"
+            android:label="@string/title_activity_server"
+		        android:parentActivityName=".MainActivity">
+        </activity>
     </application>
 
 </manifest>
