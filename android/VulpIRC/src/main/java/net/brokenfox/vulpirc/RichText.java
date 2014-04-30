@@ -24,8 +24,12 @@ public class RichText {
 				// Default FG, BG
 		0xFFFFFF, 0x000000,
 				// Preset message colours
-		0x6600CC, 0x009900, 0x660000, 0x660000,
-		0x660000, 0x336699,
+		0x7D8AC9, // Action
+		0x5FB85F, // Join
+		0xB84646, // Part
+		0xB84646, // Quit
+		0xB84646, // Kick
+		0x4992DB, // Channel notice
 	};
 
 	private final static StyleSpan boldSpan = new StyleSpan(Typeface.BOLD);
