@@ -141,8 +141,8 @@ public class WindowData {
 			messages.ensureCapacity(messageCount);
 			for (int j = 0; j < messageCount; j++) {
 				int time = p.getInt();
-				boolean isHighlight = (p.get() != 0);
 				String msg = Util.readStringFromBuffer(p);
+				boolean isHighlight = (p.get() != 0);
 				//Log.i("VulpIRC", "msg " + j + ": " + msg);
 
 				Message m = new Message();

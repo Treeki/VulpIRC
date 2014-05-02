@@ -470,12 +470,12 @@ class MainWindow(QtWidgets.QMainWindow):
 					for j in range(msgCount):
 						timestamp = u32.unpack_from(pdata, pos)[0]
 						pos += 4
-						isHighlight = pdata[pos]
-						pos += 1
 						msglen = u32.unpack_from(pdata, pos)[0]
 						pos += 4
 						msg = pdata[pos:pos+msglen].decode('utf-8', 'replace')
 						pos += msglen
+						isHighlight = pdata[pos]
+						pos += 1
 						msgs.append((timestamp, isHighlight, msg))
 
 					if wtype == 1 or wtype == 3:
