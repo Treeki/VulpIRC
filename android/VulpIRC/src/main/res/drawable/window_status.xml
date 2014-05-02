@@ -5,6 +5,9 @@
 		<color android:color="#3fff" />
 	</item>
 	<item android:minLevel="2" android:maxLevel="2">
-		<color android:color="#fff" />
+		<color android:color="#cfff" />
+	</item>
+	<item android:minLevel="3" android:maxLevel="3">
+		<color android:color="#ff0" />
 	</item>
 </level-list>

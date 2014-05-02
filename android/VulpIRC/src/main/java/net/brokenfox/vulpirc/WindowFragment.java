@@ -151,8 +151,9 @@ public class WindowFragment extends Fragment implements WindowData.WindowListene
 			}
 
 			if (i < msgCount) {
-				tv.setText(mData.messages.get(i));
-				tv.setBackgroundColor(0);
+				WindowData.Message m = mData.messages.get(i);
+				tv.setText(m.text);
+				tv.setBackgroundColor(m.isHighlight ? 0xFF663300 : 0);
 			} else {
 				tv.setText(mData.pendingMessages.get(i - msgCount).text);
 				tv.setBackgroundColor(0xFF300000);

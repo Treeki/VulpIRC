@@ -22,6 +22,7 @@ void Window::syncStateForClient(Buffer &output) {
 	for (; i != e; ++i) {
 		output.writeU32((uint32_t)i->time);
 		output.writeStr(i->text.c_str());
+		output.writeU8(i->isHighlight);
 	}
 }
 
@@ -50,6 +51,7 @@ void Window::pushMessage(const char *str, int priority) {
 	Message m;
 	m.time = now;
 	m.text = str;
+	m.isHighlight = (priority >= 3);
 	messages.push_back(m);
 
 	bool createdPacket = false;
@@ -64,6 +66,7 @@ void Window::pushMessage(const char *str, int priority) {
 				packet.writeU8(priority);
 				ackPosition = packet.size();
 				packet.writeU8(0); // ACK response ID
+				packet.writeU8(m.isHighlight ? 1 : 0);
 				packet.writeStr(str);
 				createdPacket = true;
 			}
@@ -131,6 +134,7 @@ void Window::handleRawUserInput(const char *str, Client *sender, int ackID) {
 		p.writeU32((uint32_t)now);
 		p.writeU8(0);
 		p.writeU8(currentAckID);
+		p.writeU8(0);
 		p.writeStr("");
 
 		currentAckClient->sendPacket(Packet::B2C_WINDOW_MESSAGE, p);

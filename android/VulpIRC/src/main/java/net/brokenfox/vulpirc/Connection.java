@@ -243,11 +243,12 @@ public class Connection implements BaseConn.BaseConnListener {
 		int timestamp = p.getInt();
 		byte priority = p.get();
 		byte ack = p.get();
+		boolean isHighlight = (p.get() != 0);
 		String message = Util.readStringFromBuffer(p);
 
 		WindowData w = findWindowByID(windowID);
 		if (w != null) {
-			w.pushMessage(message, new Date((long)timestamp * 1000), ack);
+			w.pushMessage(message, new Date((long)timestamp * 1000), ack, isHighlight);
 
 			if (w != mActiveWindow)
 				w.addUnreadMessage(priority);

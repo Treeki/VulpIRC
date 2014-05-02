@@ -56,7 +56,7 @@ typedef SSIZE_T ssize_t;
 
 #define SESSION_KEY_SIZE 16
 
-#define PROTOCOL_VERSION 3
+#define PROTOCOL_VERSION 4
 
 #define SERVE_VIA_TLS false
 
@@ -84,6 +84,7 @@ public:
 	struct Message {
 		time_t time;
 		std::string text;
+		bool isHighlight;
 	};
 
 	int id;

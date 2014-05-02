@@ -24,8 +24,13 @@ public class WindowData {
 		public int id;
 		public CharSequence text;
 	}
-	public ArrayList<CharSequence> messages = new ArrayList<CharSequence>();
 	public ArrayList<PendingMessage> pendingMessages = new ArrayList<PendingMessage>();
+
+	public static class Message {
+		public boolean isHighlight;
+		public CharSequence text;
+	}
+	public ArrayList<Message> messages = new ArrayList<Message>();
 
 	private int mNextAckID = 1;
 	private int allocateAckID() {
@@ -96,13 +101,16 @@ public class WindowData {
 	private final DateFormat timestampFormat = new SimpleDateFormat("\u0001[\u0002\u0010\u001DHH:mm:ss\u0018\u0001]\u0002 ", new DateFormatSymbols());
 
 	public void pushMessage(String message) {
-		pushMessage(message, new Date(), 0);
+		pushMessage(message, new Date(), 0, false);
 	}
-	public void pushMessage(String message, Date when, int ackID) {
+	public void pushMessage(String message, Date when, int ackID, boolean isHighlight) {
 		boolean didChange = false;
 
 		if (!message.isEmpty()) {
-			messages.add(RichText.process(timestampFormat.format(when) + message));
+			Message m = new Message();
+			m.isHighlight = isHighlight;
+			m.text = RichText.process(timestampFormat.format(when) + message);
+			messages.add(m);
 			didChange = true;
 		}
 
@@ -133,9 +141,14 @@ public class WindowData {
 			messages.ensureCapacity(messageCount);
 			for (int j = 0; j < messageCount; j++) {
 				int time = p.getInt();
+				boolean isHighlight = (p.get() != 0);
 				String msg = Util.readStringFromBuffer(p);
 				//Log.i("VulpIRC", "msg " + j + ": " + msg);
-				messages.add(RichText.process(timestampFormat.format(new Date((long)time * 1000)) + msg));
+
+				Message m = new Message();
+				m.text = RichText.process(timestampFormat.format(new Date((long)time * 1000)) + msg);
+				m.isHighlight = isHighlight;
+				messages.add(m);
 			}
 		}
 	}
