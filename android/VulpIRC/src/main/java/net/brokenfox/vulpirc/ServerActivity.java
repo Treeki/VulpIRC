@@ -240,6 +240,7 @@ public class ServerActivity extends FragmentActivity implements ServerData.Serve
 			mServer.username = username;
 			mServer.realname = realName;
 			mServer.port = port;
+			mServer.hostname = hostname;
 			mServer.password = usesPassword ? password : "";
 			mServer.useTls = usesTls;
 
