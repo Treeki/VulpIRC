@@ -112,7 +112,7 @@ public class BaseConn {
 	// NOTE: This executes on the Socket thread, so locking
 	// is absolutely necessary!
 	private void processRawPacket(int packetType, int packetSize, int msgID, int lastReceivedByServer, byte[] buffer, int bufferPos) {
-		Log.i("VulpIRC", "Packet received: " + packetType + ", " + packetSize);
+		//Log.i("VulpIRC", "Packet received: " + packetType + ", " + packetSize);
 
 		if ((packetType & 0x8000) == 0) {
 			// For in-band packets, handle the caching junk
