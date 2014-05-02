@@ -4,6 +4,11 @@
 	      android:title="Disconnect"
 	      android:showAsAction="never" />
 
+	<item android:id="@+id/action_pinWindowList"
+	      android:title="Pin Window List"
+	      android:orderInCategory="99"
+	      android:checkable="true"
+	      android:showAsAction="never" />
 
 	<item android:id="@+id/action_settings"
         android:title="@string/action_settings"

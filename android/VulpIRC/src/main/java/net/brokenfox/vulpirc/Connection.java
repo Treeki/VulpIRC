@@ -12,6 +12,9 @@ public class Connection implements BaseConn.BaseConnListener {
 	private static Connection mInstance = new Connection();
 	public static Connection get() { return mInstance; }
 
+	// Fuck it, storing this here so it doesn't get lost when the
+	// MainActivity is destroyed
+	public boolean uiUsingDrawer = true;
 
 
 	private BaseConn mBaseConn = new BaseConn();

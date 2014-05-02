@@ -17,10 +17,14 @@ import android.widget.*;
 
 public class MainActivity extends FragmentActivity implements Connection.ConnectionListener, Connection.LoginStateListener {
 
+	private LinearLayout mContainer;
+	private LinearLayout mDrawerMainContent;
 	private ListView mWindowList;
 	private ViewPager mWindowPager;
 	private WindowListAdapter mWindowListAdapter;
 	private WindowPagerAdapter mWindowPagerAdapter;
+
+	private boolean mUsingDrawerMode;
 	private DrawerLayout mDrawerLayout;
 	private ActionBarDrawerToggle mDrawerToggle;
 
@@ -29,7 +33,12 @@ public class MainActivity extends FragmentActivity implements Connection.Connect
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-	    mDrawerLayout = ((DrawerLayout)findViewById(R.id.drawerLayout));
+	    mUsingDrawerMode = true; // default state as per XML.
+
+	    mContainer = (LinearLayout)findViewById(R.id.container);
+	    mDrawerMainContent = (LinearLayout)findViewById(R.id.drawerMainContent);
+
+	    mDrawerLayout = (DrawerLayout)findViewById(R.id.drawerLayout);
 	    mDrawerToggle = new ActionBarDrawerToggle(this, mDrawerLayout,
 			    R.drawable.ic_drawer,
 			    R.string.drawer_open, R.string.drawer_close) {
@@ -51,18 +60,20 @@ public class MainActivity extends FragmentActivity implements Connection.Connect
 	    mDrawerLayout.setDrawerListener(mDrawerToggle);
 	    mDrawerLayout.setDrawerShadow(R.drawable.drawer_shadow, Gravity.LEFT);
 
-	    getActionBar().setDisplayHomeAsUpEnabled(true);
 	    getActionBar().setHomeButtonEnabled(true);
+	    getActionBar().setDisplayHomeAsUpEnabled(true);
 
-	    mWindowList = ((ListView)findViewById(R.id.windowList));
+	    mWindowList = (ListView)findViewById(R.id.windowList);
 	    mWindowList.setChoiceMode(AbsListView.CHOICE_MODE_SINGLE);
 	    mWindowList.setOnItemClickListener(new WindowListItemClickListener());
 	    mWindowList.setBackgroundColor(0x60000000);
 	    mWindowListAdapter = new WindowListAdapter();
 
-	    mWindowPager = ((ViewPager)findViewById(R.id.windowPager));
+	    mWindowPager = (ViewPager)findViewById(R.id.windowPager);
 	    mWindowPager.setOnPageChangeListener(new WindowPagerPageChangeListener());
 	    mWindowPagerAdapter = new WindowPagerAdapter(getSupportFragmentManager());
+
+	    setupDrawerLayout(Connection.get().uiUsingDrawer);
 
 	    doBindService();
     }
@@ -89,6 +100,36 @@ public class MainActivity extends FragmentActivity implements Connection.Connect
 		super.onDestroy();
 	}
 
+
+
+	private void setupDrawerLayout(boolean usingDrawerMode) {
+		if (usingDrawerMode == mUsingDrawerMode)
+			return;
+		mUsingDrawerMode = usingDrawerMode;
+
+		float density = getResources().getDisplayMetrics().density;
+
+		DrawerLayout.LayoutParams listParams = new DrawerLayout.LayoutParams(
+				(int)(density * 160 + 0.5), ViewGroup.LayoutParams.MATCH_PARENT);
+		listParams.gravity = Gravity.LEFT;
+
+		if (mUsingDrawerMode) {
+			mDrawerMainContent.removeView(mWindowList);
+			mWindowList.setLayoutParams(listParams);
+			mDrawerLayout.addView(mWindowList);
+		} else {
+			mDrawerLayout.removeView(mWindowList);
+			mDrawerMainContent.addView(mWindowList, 0, listParams);
+			mWindowList.setVisibility(View.VISIBLE);
+		}
+
+		mDrawerToggle.setDrawerIndicatorEnabled(mUsingDrawerMode);
+		getActionBar().setHomeButtonEnabled(mUsingDrawerMode);
+		getActionBar().setDisplayHomeAsUpEnabled(mUsingDrawerMode);
+	}
+
+
+
 	@Override
 	public void handlePublicWindowsUpdated() {
 		mWindowPagerAdapter.notifyDataSetChanged();
@@ -106,6 +147,7 @@ public class MainActivity extends FragmentActivity implements Connection.Connect
 	@Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.main, menu);
+		menu.findItem(R.id.action_pinWindowList).setChecked(!mUsingDrawerMode);
         return true;
     }
 
@@ -118,6 +160,12 @@ public class MainActivity extends FragmentActivity implements Connection.Connect
             case R.id.action_settings:
                 return true;
 
+	        case R.id.action_pinWindowList:
+		        setupDrawerLayout(item.isChecked());
+		        item.setChecked(!item.isChecked());
+		        Connection.get().uiUsingDrawer = mUsingDrawerMode;
+		        return true;
+
 	        case R.id.actionLogOut:
 		        Connection.get().disconnect();
 		        return true;
@@ -127,7 +175,7 @@ public class MainActivity extends FragmentActivity implements Connection.Connect
 
 
 	private void fixActionBarTitle() {
-		if (mDrawerLayout.isDrawerOpen(mWindowList))
+		if (mUsingDrawerMode && mDrawerLayout.isDrawerOpen(mWindowList))
 			return;
 
 		WindowData w = Connection.get().getActiveWindow();
