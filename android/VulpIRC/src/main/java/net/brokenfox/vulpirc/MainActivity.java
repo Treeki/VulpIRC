@@ -186,6 +186,7 @@ public class MainActivity extends FragmentActivity implements Connection.Connect
 	private class WindowListItemView extends LinearLayout {
 		private ImageView mStatusView;
 		private TextView mTitleView;
+		private TextView mUnreadView;
 
 		public WindowListItemView(Context context) {
 			super(context);
@@ -196,6 +197,8 @@ public class MainActivity extends FragmentActivity implements Connection.Connect
 			mStatusView.setImageDrawable(getResources().getDrawable(R.drawable.window_status));
 			mTitleView = new TextView(context);
 			mTitleView.setGravity(0x800003|0x10); // start|center_vertical
+			mUnreadView = new TextView(context);
+			mUnreadView.setGravity(0x800003|0x10); // start|center_vertical
 
 			float density = getResources().getDisplayMetrics().density;
 			setLayoutParams(new AbsListView.LayoutParams(LayoutParams.MATCH_PARENT, (int) (36 * density + 0.5f)));
@@ -206,8 +209,14 @@ public class MainActivity extends FragmentActivity implements Connection.Connect
 			int titlePadding = (int)(16 * density + 0.5f);
 			mTitleView.setPadding(titlePadding, 0, 0, 0);
 
+			LayoutParams titleParams = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT);
+			titleParams.weight = 1;
+
+			mUnreadView.setPadding(titlePadding, 0, titlePadding, 0);
+
 			addView(mStatusView, statuslp);
-			addView(mTitleView, new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT));
+			addView(mTitleView, titleParams);
+			addView(mUnreadView, new LayoutParams(LayoutParams.WRAP_CONTENT, (int) (24 * density + 0.5f)));
 
 			// I really don't like this.
 			TypedArray a = getTheme().obtainStyledAttributes(new int[] { android.R.attr.activatedBackgroundIndicator });
@@ -222,6 +231,8 @@ public class MainActivity extends FragmentActivity implements Connection.Connect
 		public void setWindow(WindowData wd) {
 			mTitleView.setText(wd.title);
 			mStatusView.setImageLevel(wd.unreadLevel);
+			mUnreadView.setText(String.valueOf(wd.unreadCount));
+			mUnreadView.setVisibility((wd.unreadCount == 0) ? INVISIBLE : VISIBLE);
 		}
 	}
 

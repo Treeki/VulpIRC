@@ -18,6 +18,7 @@ public class WindowData {
 	public int id;
 	public String title;
 	public int unreadLevel = 0;
+	public int unreadCount = 0;
 
 	public static class PendingMessage {
 		public int id;
@@ -48,8 +49,25 @@ public class WindowData {
 		return wf;
 	}
 
-	public void setUnreadLevel(int newLevel) {
-		unreadLevel = newLevel;
+	public void addUnreadMessage(int newLevel) {
+		boolean didChange = false;
+
+		if (newLevel > unreadLevel) {
+			unreadLevel = newLevel;
+			didChange = true;
+		}
+
+		if (newLevel > 0) {
+			unreadCount++;
+			didChange = true;
+		}
+
+		if (didChange)
+			Connection.get().notifyWindowsUpdated();
+	}
+	public void clearUnread() {
+		unreadLevel = 0;
+		unreadCount = 0;
 		Connection.get().notifyWindowsUpdated();
 	}
 

@@ -246,8 +246,8 @@ public class Connection implements BaseConn.BaseConnListener {
 		if (w != null) {
 			w.pushMessage(message, new Date((long)timestamp * 1000), ack);
 
-			if (priority > w.unreadLevel && w != mActiveWindow)
-				w.setUnreadLevel(priority);
+			if (w != mActiveWindow)
+				w.addUnreadMessage(priority);
 		}
 	}
 
@@ -362,7 +362,7 @@ public class Connection implements BaseConn.BaseConnListener {
 	public WindowData getActiveWindow() { return mActiveWindow; }
 	public void setActiveWindow(WindowData w) {
 		mActiveWindow = w;
-		w.setUnreadLevel(0);
+		w.clearUnread();
 	}
 
 	// Servers, and crap
