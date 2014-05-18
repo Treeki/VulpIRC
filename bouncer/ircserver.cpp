@@ -579,9 +579,9 @@ void IRCServer::lineReceivedEvent(char *line, int size) {
 			Query *q = findQuery(user.nick.c_str(), requireQueryWindow);
 			if (q) {
 				if (ctcpType)
-					q->handleCtcp(ctcpType, ctcpParams);
+					q->handleCtcp(user, ctcpType, ctcpParams);
 				else
-					q->handlePrivmsg(paramsAfterFirst);
+					q->handlePrivmsg(user, paramsAfterFirst);
 				return;
 			} else if (ctcpType) {
 				// This CTCP didn't require a query window to be
@@ -597,13 +597,24 @@ void IRCServer::lineReceivedEvent(char *line, int size) {
 				return;
 			}
 		} else {
-			Channel *c = findChannel(targetBuf, true);
-			if (c) {
-				if (ctcpType)
-					c->handleCtcp(user, ctcpType, ctcpParams);
-				else
-					c->handlePrivmsg(user, paramsAfterFirst);
-				return;
+			if (isValidChannelName(targetBuf)) {
+				Channel *c = findChannel(targetBuf, true);
+				if (c) {
+					if (ctcpType)
+						c->handleCtcp(user, ctcpType, ctcpParams);
+					else
+						c->handlePrivmsg(user, paramsAfterFirst);
+					return;
+				}
+			} else {
+				Query *q = findQuery(targetBuf, true);
+				if (q) {
+					if (ctcpType)
+						q->handleCtcp(user, ctcpType, ctcpParams);
+					else
+						q->handlePrivmsg(user, paramsAfterFirst);
+					return;
+				}
 			}
 		}
 

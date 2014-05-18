@@ -200,11 +200,13 @@ public:
 	virtual void handleUserClosed();
 
 	void handleQuit(const char *message);
-	void handlePrivmsg(const char *str);
-	void handleCtcp(const char *type, const char *params);
+	void handlePrivmsg(const UserRef &user, const char *str);
+	void handleCtcp(const UserRef &user, const char *type, const char *params);
 
 	void showNickChange(const UserRef &user, const char *newNick);
 	void renamePartner(const char *_partner);
+
+	void outputUserMessage(const char *nick, const char *message, bool isAction);
 
 protected:
 	virtual void handleCommand(const char *cmd, const char *args);

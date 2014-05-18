@@ -26,14 +26,7 @@ void Query::handleCommand(const char *cmd, const char *args) {
 
 	if (strcmp(cmd, "me") == 0) {
 		if (args[0] != 0) {
-			// The duplication of code between here and
-			// handlePrivmsg is ugly. TODO: fixme.
-
-			snprintf(msgBuf, sizeof(msgBuf),
-				"* %s %s",
-				server->currentNick,
-				args);
-			pushMessage(msgBuf);
+			outputUserMessage(server->currentNick, args, /*isAction=*/true);
 
 			snprintf(msgBuf, sizeof(msgBuf),
 				"PRIVMSG %s :\x01" "ACTION %s\x01",
@@ -49,14 +42,7 @@ void Query::handleCommand(const char *cmd, const char *args) {
 void Query::handleUserInput(const char *str) {
 	char msgBuf[16384];
 
-	// Aaaand this is also pretty ugly ><;;
-	// TODO: fixme.
-
-	snprintf(msgBuf, sizeof(msgBuf),
-		"<%s> %s",
-		server->currentNick,
-		str);
-	pushMessage(msgBuf);
+	outputUserMessage(server->currentNick, str, /*isAction=*/false);
 
 	snprintf(msgBuf, sizeof(msgBuf),
 		"PRIVMSG %s :%s",
@@ -93,34 +79,51 @@ void Query::showNickChange(const UserRef &user, const char *newNick) {
 	pushMessage(buf);
 }
 
-void Query::handlePrivmsg(const char *str) {
-	char buf[15000];
-	snprintf(buf, 15000,
-		"<%s> %s",
-		partner.c_str(),
-		str);
-
-	pushMessage(buf, 3);
+void Query::handlePrivmsg(const UserRef &user, const char *str) {
+	outputUserMessage(user.nick.c_str(), str, /*isAction=*/false);
 }
 
-void Query::handleCtcp(const char *type, const char *params) {
-	char buf[15000];
+void Query::outputUserMessage(const char *nick, const char *str, bool isAction) {
+	RichTextBuilder rt;
 
-	if (strcmp(type, "ACTION") == 0) {
-		snprintf(buf, sizeof(buf),
-			"* %s %s",
-			partner.c_str(),
-			params);
-
+	if (isAction) {
+		rt.foreground(COL_LEVEL_BASE, COL_ACTION);
+		rt.append("* ");
 	} else {
-		snprintf(buf, sizeof(buf),
-			"CTCP from %s : %s %s",
-			partner.c_str(),
-			type,
-			params);
+		rt.writeS8('<');
 	}
 
-	pushMessage(buf, 3);
+	rt.bold();
+	rt.appendNick(nick);
+	rt.endBold();
+	rt.append(isAction ? " " : "> ");
+
+	rt.appendIRC(str);
+
+	bool isSelf = (strcmp(nick, server->currentNick) == 0);
+
+	pushMessage(rt.c_str(), isSelf ? 0 : 3);
+}
+
+void Query::handleCtcp(const UserRef &user, const char *type, const char *params) {
+	if (strcmp(type, "ACTION") == 0) {
+		outputUserMessage(user.nick.c_str(), params, /*isAction=*/true);
+	} else {
+		RichTextBuilder rt;
+
+		rt.foreground(COL_LEVEL_BASE, COL_CHANNEL_NOTICE);
+
+		rt.append("*** CTCP from ");
+		rt.bold();
+		rt.appendNick(user.nick.c_str());
+		rt.endBold();
+		rt.append(": ");
+
+		rt.foreground(COL_LEVEL_BASE, COL_DEFAULT_FG);
+		rt.appendIRC(params);
+
+		pushMessage(rt.c_str(), 3);
+	}
 }
 
 void Query::renamePartner(const char *_partner) {
