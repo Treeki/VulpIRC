@@ -452,6 +452,7 @@ public:
 	char currentNick[128], currentNickLower[128];
 	char serverPrefix[32], serverPrefixMode[32];
 	std::string serverChannelModes[4];
+	char chanTypes[32];
 
 	// This really should go somewhere else
 	static void ircStringToLowercase(const char *in, char *out, int outSize);
@@ -461,6 +462,7 @@ public:
 	uint32_t getUserFlagByMode(char mode) const;
 	int getChannelModeType(char mode) const;
 	char getEffectivePrefixChar(uint32_t modes) const;
+	bool isValidChannelName(const char *name) const;
 
 	IRCServer(Bouncer *_bouncer);
 	~IRCServer();

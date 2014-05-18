@@ -154,6 +154,8 @@ void IRCServer::resetIRCState() {
 
 	strcpy(serverPrefix, "@+");
 	strcpy(serverPrefixMode, "ov");
+
+	strcpy(chanTypes, "#&+!"); // default types as per RFC 2811
 }
 
 
@@ -687,6 +689,18 @@ char IRCServer::getEffectivePrefixChar(uint32_t modes) const {
 	}
 
 	return 0;
+}
+
+bool IRCServer::isValidChannelName(const char *name) const {
+	const char *check = chanTypes;
+
+	while (*check != 0) {
+		if (*check == name[0])
+			return true;
+		++check;
+	}
+
+	return false;
 }
 
 

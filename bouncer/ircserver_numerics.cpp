@@ -275,6 +275,10 @@ bool IRCServer::rpl_ISUPPORT(char *line) {
 				else
 					proc = end + 1;
 			}
+		} else if (strcmp(keyBuf, "CHANTYPES") == 0) {
+			if (strlen(valueBuf) > 0)
+				strncpy(chanTypes, valueBuf, 31);
+			chanTypes[31] = 0;
 		}
 	}
 
