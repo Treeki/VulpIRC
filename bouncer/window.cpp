@@ -35,7 +35,7 @@ void Window::notifyWindowRename() {
 		Packet::B2C_WINDOW_RENAME, packet);
 }
 
-void Window::pushMessage(const char *str, int priority) {
+void Window::pushMessage(const char *str, int priority, bool isHighlight) {
 	if (messages.size() >= core->maxWindowMessageCount)
 		messages.pop_front();
 
@@ -51,7 +51,7 @@ void Window::pushMessage(const char *str, int priority) {
 	Message m;
 	m.time = now;
 	m.text = str;
-	m.isHighlight = (priority >= 3);
+	m.isHighlight = isHighlight;
 	messages.push_back(m);
 
 	bool createdPacket = false;

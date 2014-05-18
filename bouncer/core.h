@@ -96,7 +96,7 @@ public:
 	void handleRawUserInput(const char *str, Client *sender = 0, int ackID = 0);
 	virtual void handleUserClosed();
 
-	void pushMessage(const char *str, int priority = 0);
+	void pushMessage(const char *str, int priority = 0, bool isHighlight = false);
 	void notifyWindowRename();
 
 protected:

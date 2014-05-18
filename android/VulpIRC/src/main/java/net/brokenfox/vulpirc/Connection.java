@@ -17,6 +17,21 @@ public class Connection implements BaseConn.BaseConnListener {
 	public boolean uiUsingDrawer = true;
 
 
+	private boolean mClientInForeground = false;
+	public void clientEnteredForeground() {
+		mClientInForeground = true;
+		if (totalMessagesUnread != 0) {
+			totalMessagesUnread = 0;
+			for (NotificationListener l : mNotificationListeners)
+				l.handleRefreshOngoingNotify();
+		}
+	}
+
+	public void clientLeftForeground() {
+		mClientInForeground = false;
+	}
+
+
 	private BaseConn mBaseConn = new BaseConn();
 	private Connection() {
 		mBaseConn.setListener(this);
@@ -43,15 +58,16 @@ public class Connection implements BaseConn.BaseConnListener {
 
 
 
-	private ArrayList<LoginStateListener> mLoginStateListeners = new ArrayList<LoginStateListener>();
-	public interface LoginStateListener {
-		void handleLoginStateChanged();
+	private ArrayList<NotificationListener> mNotificationListeners = new ArrayList<NotificationListener>();
+	public interface NotificationListener {
+		void handleRefreshOngoingNotify();
+		void handleNotifyOnHighlight(WindowData window, CharSequence text);
 	}
-	public void registerLoginStateListener(LoginStateListener l) {
-		mLoginStateListeners.add(l);
+	public void registerNotificationListener(NotificationListener l) {
+		mNotificationListeners.add(l);
 	}
-	public void deregisterLoginStateListener(LoginStateListener l) {
-		mLoginStateListeners.remove(l);
+	public void deregisterNotificationListener(NotificationListener l) {
+		mNotificationListeners.remove(l);
 	}
 
 
@@ -88,8 +104,8 @@ public class Connection implements BaseConn.BaseConnListener {
 	public void handleSessionStarted() {
 		statusWindow.pushMessage("Session started!");
 
-		for (LoginStateListener l : mLoginStateListeners)
-			l.handleLoginStateChanged();
+		for (NotificationListener l : mNotificationListeners)
+			l.handleRefreshOngoingNotify();
 
 		windows.clear();
 		serverWindows.clear();
@@ -100,20 +116,22 @@ public class Connection implements BaseConn.BaseConnListener {
 			l.handlePublicWindowsUpdated();
 			l.handleServersUpdated();
 		}
+
+		totalMessagesUnread = 0;
 	}
 
 	@Override
 	public void handleSessionEnded() {
 		statusWindow.pushMessage("Session ended!");
 
-		for (LoginStateListener l : mLoginStateListeners)
-			l.handleLoginStateChanged();
+		for (NotificationListener l : mNotificationListeners)
+			l.handleRefreshOngoingNotify();
 	}
 
 	@Override
 	public void handleSocketStateChanged() {
-		for (LoginStateListener l : mLoginStateListeners)
-			l.handleLoginStateChanged();
+		for (NotificationListener l : mNotificationListeners)
+			l.handleRefreshOngoingNotify();
 	}
 
 	@Override
@@ -250,8 +268,21 @@ public class Connection implements BaseConn.BaseConnListener {
 		if (w != null) {
 			w.pushMessage(message, new Date((long)timestamp * 1000), ack, isHighlight);
 
-			if (w != mActiveWindow)
+			if (w != mActiveWindow) {
 				w.addUnreadMessage(priority);
+
+				if (priority > 0 && !mClientInForeground) {
+					totalMessagesUnread++;
+					for (NotificationListener l : mNotificationListeners)
+						l.handleRefreshOngoingNotify();
+				}
+
+				if (priority >= 3) {
+					CharSequence rt = RichText.process(message);
+					for (NotificationListener l : mNotificationListeners)
+						l.handleNotifyOnHighlight(w, rt);
+				}
+			}
 		}
 	}
 
@@ -353,6 +384,8 @@ public class Connection implements BaseConn.BaseConnListener {
 
 	public ArrayList<WindowData> serverWindows = new ArrayList<WindowData>();
 	public ArrayList<WindowData> publicWindows = new ArrayList<WindowData>();
+
+	public int totalMessagesUnread = 0;
 
 	private WindowData mActiveWindow = null;
 

@@ -15,7 +15,7 @@ import android.util.Log;
 import android.view.*;
 import android.widget.*;
 
-public class MainActivity extends FragmentActivity implements Connection.ConnectionListener, Connection.LoginStateListener {
+public class MainActivity extends FragmentActivity implements Connection.ConnectionListener, Connection.NotificationListener {
 
 	private LinearLayout mContainer;
 	private LinearLayout mDrawerMainContent;
@@ -94,13 +94,41 @@ public class MainActivity extends FragmentActivity implements Connection.Connect
 	protected void onDestroy() {
 		if (mService != null) {
 			Connection.get().deregisterListener(this);
-			Connection.get().deregisterLoginStateListener(this);
+			Connection.get().deregisterNotificationListener(this);
 		}
 		doUnbindService();
 		super.onDestroy();
 	}
 
+	@Override
+	protected void onResume() {
+		super.onResume();
+		Connection.get().clientEnteredForeground();
 
+		Intent i = getIntent();
+		if (i != null) {
+			int winID = i.getIntExtra("WindowID", -1);
+			if (winID != -1) {
+				WindowData w = Connection.get().findWindowByID(winID);
+				if (w != null) {
+					int index = Connection.get().publicWindows.indexOf(w);
+					mWindowPager.setCurrentItem(index + 1);
+				}
+			}
+		}
+	}
+
+	@Override
+	protected void onPause() {
+		super.onPause();
+		Connection.get().clientLeftForeground();
+	}
+
+	@Override
+	protected void onNewIntent(Intent intent) {
+		super.onNewIntent(intent);
+		setIntent(intent);
+	}
 
 	private void setupDrawerLayout(boolean usingDrawerMode) {
 		if (usingDrawerMode == mUsingDrawerMode)
@@ -187,7 +215,7 @@ public class MainActivity extends FragmentActivity implements Connection.Connect
 
 
 	@Override
-	public void handleLoginStateChanged() {
+	public void handleRefreshOngoingNotify() {
 		BaseConn.SocketState s = Connection.get().getSocketState();
 		switch (s) {
 			case CONNECTED:
@@ -203,6 +231,11 @@ public class MainActivity extends FragmentActivity implements Connection.Connect
 				getActionBar().setSubtitle("Disconnecting...");
 				break;
 		}
+	}
+
+	@Override
+	public void handleNotifyOnHighlight(WindowData window, CharSequence text) {
+		// Nothing here!
 	}
 
 	private class WindowListItemClickListener implements AdapterView.OnItemClickListener {
@@ -375,12 +408,12 @@ public class MainActivity extends FragmentActivity implements Connection.Connect
 
 			mService = ((IRCService.LocalBinder)iBinder).getService();
 			Connection.get().registerListener(MainActivity.this);
-			Connection.get().registerLoginStateListener(MainActivity.this);
+			Connection.get().registerNotificationListener(MainActivity.this);
 
 			mWindowList.setAdapter(mWindowListAdapter);
 			mWindowPager.setAdapter(mWindowPagerAdapter);
 
-			handleLoginStateChanged();
+			handleRefreshOngoingNotify();
 		}
 
 		@Override

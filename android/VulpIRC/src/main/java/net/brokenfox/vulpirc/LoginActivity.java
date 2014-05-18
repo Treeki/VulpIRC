@@ -17,7 +17,7 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class LoginActivity extends Activity implements Connection.LoginStateListener {
+public class LoginActivity extends Activity implements Connection.NotificationListener {
 	private View mContainerLoginForm;
 	private View mContainerLoginStatus;
 	private TextView mLoginStatus;
@@ -143,7 +143,7 @@ public class LoginActivity extends Activity implements Connection.LoginStateList
 
 
 
-	public void handleLoginStateChanged() {
+	public void handleRefreshOngoingNotify() {
 		switch (Connection.get().getSocketState()) {
 			case DISCONNECTED:
 				mLoginStatus.setText("Disconnected.");
@@ -173,6 +173,10 @@ public class LoginActivity extends Activity implements Connection.LoginStateList
 		}
 	}
 
+	@Override
+	public void handleNotifyOnHighlight(WindowData window, CharSequence text) {
+		// Nothing here!
+	}
 
 	private void showProgress(final boolean show) {
 		// Straight from the LoginActivity template!
@@ -225,13 +229,13 @@ public class LoginActivity extends Activity implements Connection.LoginStateList
 			Log.i("VulpIRC", "[LoginActivity connected to IRCService]");
 
 			mService = ((IRCService.LocalBinder)iBinder).getService();
-			Connection.get().registerLoginStateListener(LoginActivity.this);
+			Connection.get().registerNotificationListener(LoginActivity.this);
 
 			if (Connection.get().getSessionActive()) {
 				// We have a session, just jump right into the client
 				completeLoginScreen();
 			} else {
-				handleLoginStateChanged();
+				handleRefreshOngoingNotify();
 				if (Connection.get().getSocketState() == BaseConn.SocketState.DISCONNECTED) {
 					mContainerLoginForm.setVisibility(View.VISIBLE);
 				} else {
@@ -244,7 +248,7 @@ public class LoginActivity extends Activity implements Connection.LoginStateList
 		public void onServiceDisconnected(ComponentName componentName) {
 			Log.i("VulpIRC", "[LoginActivity disconnected from IRCService]");
 
-			Connection.get().deregisterLoginStateListener(LoginActivity.this);
+			Connection.get().deregisterNotificationListener(LoginActivity.this);
 			mService = null;
 		}
 	};

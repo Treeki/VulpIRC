@@ -100,7 +100,7 @@ void Query::handlePrivmsg(const char *str) {
 		partner.c_str(),
 		str);
 
-	pushMessage(buf, 2);
+	pushMessage(buf, 3);
 }
 
 void Query::handleCtcp(const char *type, const char *params) {
@@ -120,7 +120,7 @@ void Query::handleCtcp(const char *type, const char *params) {
 			params);
 	}
 
-	pushMessage(buf, 2);
+	pushMessage(buf, 3);
 }
 
 void Query::renamePartner(const char *_partner) {

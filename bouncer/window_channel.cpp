@@ -458,7 +458,7 @@ void Channel::outputUserMessage(const char *nick, const char *str, bool isAction
 	rt.appendIRC(str);
 
 	bool isHighlight = (strcasestr(str, server->currentNick) != NULL);
-	pushMessage(rt.c_str(), isHighlight ? 3 : 2);
+	pushMessage(rt.c_str(), isHighlight ? 3 : 2, isHighlight);
 }
 
 void Channel::handleCtcp(const UserRef &user, const char *type, const char *params) {
