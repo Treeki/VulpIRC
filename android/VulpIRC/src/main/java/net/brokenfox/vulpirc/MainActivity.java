@@ -250,15 +250,12 @@ public class MainActivity extends FragmentActivity implements Connection.Connect
 		@Override
 		public void onPageSelected(int position) {
 			mWindowList.setItemChecked(position, true);
-			if (Connection.get().getActiveWindow() != null)
-				Log.i("VulpIRC", "Boop1 : " + Connection.get().getActiveWindow().title);
 
 			if (position == 0)
 				Connection.get().setActiveWindow(Connection.get().statusWindow);
 			else
 				Connection.get().setActiveWindow(Connection.get().publicWindows.get(position - 1));
 
-			Log.i("VulpIRC", "Boop2 : " + Connection.get().getActiveWindow().title);
 			fixActionBarTitle();
 		}
 	}
