@@ -3,10 +3,7 @@ package net.brokenfox.vulpirc;
 import android.graphics.Typeface;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
-import android.text.style.BackgroundColorSpan;
-import android.text.style.ForegroundColorSpan;
-import android.text.style.StyleSpan;
-import android.text.style.UnderlineSpan;
+import android.text.style.*;
 import android.text.util.Linkify;
 
 import java.util.HashMap;
@@ -32,24 +29,6 @@ public class RichText {
 		0x4992DB, // Channel notice
 	};
 
-	private final static StyleSpan boldSpan = new StyleSpan(Typeface.BOLD);
-	private final static StyleSpan italicSpan = new StyleSpan(Typeface.ITALIC);
-	private final static UnderlineSpan underlineSpan = new UnderlineSpan();
-	private static ForegroundColorSpan[] presetForegroundSpans = null;
-	private static BackgroundColorSpan[] presetBackgroundSpans = null;
-	private static HashMap<Integer, ForegroundColorSpan> cachedForegroundSpans = new HashMap<Integer, ForegroundColorSpan>();
-	private static HashMap<Integer, BackgroundColorSpan> cachedBackgroundSpans = new HashMap<Integer, BackgroundColorSpan>();
-
-	private static void setupPresets() {
-		presetForegroundSpans = new ForegroundColorSpan[presetColors.length];
-		presetBackgroundSpans = new BackgroundColorSpan[presetColors.length];
-
-		for (int i = 0; i < presetColors.length; i++) {
-			presetForegroundSpans[i] = new ForegroundColorSpan(0xFF000000 | presetColors[i]);
-			presetBackgroundSpans[i] = new BackgroundColorSpan(0xFF000000 | presetColors[i]);
-		}
-	}
-
 	// This is kinda kludgey but... I don't want to make two extra allocations
 	// every time I process a string.
 	// So here.
@@ -57,9 +36,6 @@ public class RichText {
 	private static BackgroundColorSpan[] currentBgSpans = new BackgroundColorSpan[4];
 
 	public static Spanned process(String source) {
-		if (presetForegroundSpans == null)
-			setupPresets();
-
 		SpannableStringBuilder s = new SpannableStringBuilder();
 
 		int boldStart = -1;
@@ -91,21 +67,21 @@ public class RichText {
 					boldStart = out;
 				} else if (c == 2 && boldStart > -1) {
 					if (boldStart != out)
-						s.setSpan(boldSpan, boldStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+						s.setSpan(new StyleSpan(Typeface.BOLD), boldStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 					boldStart = -1;
 
 				} else if (c == 3 && italicStart == -1) {
 					italicStart = out;
 				} else if (c == 4 && italicStart > -1) {
 					if (italicStart != out)
-						s.setSpan(italicSpan, italicStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+						s.setSpan(new StyleSpan(Typeface.ITALIC), italicStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 					italicStart = -1;
 
 				} else if (c == 5 && underlineStart == -1) {
 					underlineStart = out;
 				} else if (c == 6 && underlineStart > -1) {
 					if (underlineStart != out)
-						s.setSpan(underlineSpan, underlineStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+						s.setSpan(new UnderlineSpan(), underlineStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 					underlineStart = -1;
 
 				} else if (c >= 0x10 && c <= 0x1F) {
@@ -122,9 +98,9 @@ public class RichText {
 						if ((first & 1) == 1) {
 							// Preset colour
 							if (isBG)
-								chosenSpan = presetBackgroundSpans[first >> 1];
+								chosenSpan = new BackgroundColorSpan(0xFF000000 | presetColors[first >> 1]);
 							else
-								chosenSpan = presetForegroundSpans[first >> 1];
+								chosenSpan = new ForegroundColorSpan(0xFF000000 | presetColors[first >> 1]);
 							in++; // Skip the extra
 
 						} else if ((in + 3) < source.length()) {
@@ -134,21 +110,10 @@ public class RichText {
 							int b = source.charAt(in + 3);
 							int col = 0xFF000000 | (r << 17) | (g << 9) | (b << 1);
 
-							if (isBG) {
-								if (cachedBackgroundSpans.containsKey(col)) {
-									chosenSpan = cachedBackgroundSpans.get(col);
-								} else {
-									chosenSpan = new BackgroundColorSpan(col);
-									cachedBackgroundSpans.put(col, (BackgroundColorSpan)chosenSpan);
-								}
-							} else {
-								if (cachedForegroundSpans.containsKey(col)) {
-									chosenSpan = cachedForegroundSpans.get(col);
-								} else {
-									chosenSpan = new ForegroundColorSpan(col);
-									cachedForegroundSpans.put(col, (ForegroundColorSpan)chosenSpan);
-								}
-							}
+							if (isBG)
+								chosenSpan = new BackgroundColorSpan(col);
+							else
+								chosenSpan = new ForegroundColorSpan(col);
 
 							in += 3; // Skip the extra
 						}
@@ -231,11 +196,11 @@ public class RichText {
 
 		// Any un-applied spans?
 		if (boldStart > -1 && boldStart != out)
-			s.setSpan(boldSpan, boldStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+			s.setSpan(new StyleSpan(Typeface.BOLD), boldStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 		if (italicStart > -1 && italicStart != out)
-			s.setSpan(italicSpan, italicStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+			s.setSpan(new StyleSpan(Typeface.ITALIC), italicStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 		if (underlineStart > -1 && underlineStart != out)
-			s.setSpan(underlineSpan, underlineStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+			s.setSpan(new UnderlineSpan(), underlineStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 		if (bgStart > -1 && bgStart != out)
 			s.setSpan(bgSpan, bgStart, out, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
 		if (fgStart > -1 && fgStart != out)
